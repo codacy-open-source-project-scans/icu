@@ -1683,8 +1683,11 @@ public class MessageFormat extends UFormat {
                 }
             } else {
                 argId = argName;
-                if(argsMap!=null && argsMap.containsKey(argName)) {
+                if(argsMap!=null) {
                     arg=argsMap.get(argName);
+                    if (arg==null) {
+                        noArg=!argsMap.containsKey(argName);
+                    }
                 } else {
                     arg=null;
                     noArg=true;
@@ -1694,7 +1697,9 @@ public class MessageFormat extends UFormat {
             int prevDestLength=dest.length;
             Format formatter = null;
             if (noArg) {
-                dest.append("{"+argName+"}");
+                dest.append("{");
+                dest.append(argName);
+                dest.append("}");
             } else if (arg == null) {
                 dest.append("null");
             } else if(pluralNumber!=null && pluralNumber.numberArgIndex==(i-2)) {
