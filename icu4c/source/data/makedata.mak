@@ -12,14 +12,14 @@
 
 ##############################################################################
 # Keep the following in sync with the version - see common/unicode/uvernum.h
-U_ICUDATA_NAME=icudt73
+U_ICUDATA_NAME=icudt74
 ##############################################################################
 !IF "$(UWP)" == "UWP"
 # Optionally change the name of the data file for the UWP version.
-U_ICUDATA_NAME=icudt73
+U_ICUDATA_NAME=icudt74
 !ENDIF
 U_ICUDATA_ENDIAN_SUFFIX=l
-UNICODE_VERSION=15.0
+UNICODE_VERSION=15.1
 ICU_LIB_TARGET=$(DLL_OUTPUT)\$(U_ICUDATA_NAME).dll
 
 #  ICUMAKE
