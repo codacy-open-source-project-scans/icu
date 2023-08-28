@@ -653,18 +653,21 @@ group: resourcebundle
     locbased.o
     loclikely.o
     localebuilder.o
+    ulocale.o
     ulocbuilder.o
+    loclikelysubtags.o
   deps
     udata ucol_swp
     sort stringenumeration uhash uvector
     uscript_props propname
     bytesinkutil
     errorcode
+    lsr
 
 group: localematcher
     localematcher.o
   deps
-    resourcebundle localeprioritylist loclikelysubtags locdistance lsr
+    resourcebundle localeprioritylist locdistance
 
 group: localeprioritylist
     localeprioritylist.o
@@ -674,12 +677,7 @@ group: localeprioritylist
 group: locdistance
     locdistance.o
   deps
-    loclikelysubtags
-
-group: loclikelysubtags
-    loclikelysubtags.o
-  deps
-    lsr resourcebundle
+    resourcebundle
 
 group: lsr
     lsr.o
@@ -919,7 +917,7 @@ group: charset_detector
 group: spoof_detection
     uspoof.o uspoof_build.o uspoof_conf.o uspoof_impl.o scriptset.o
   deps
-    uniset_props regex unorm uscript
+    uniset_props regex unorm uscript ubidi
 
 group: alphabetic_index
     alphaindex.o

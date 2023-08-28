@@ -2080,6 +2080,10 @@ Locale::addLikelySubtags(UErrorCode& status) {
 
 void
 Locale::minimizeSubtags(UErrorCode& status) {
+    Locale::minimizeSubtags(false, status);
+}
+void
+Locale::minimizeSubtags(bool favorScript, UErrorCode& status) {
     if (U_FAILURE(status)) {
         return;
     }
@@ -2087,7 +2091,7 @@ Locale::minimizeSubtags(UErrorCode& status) {
     CharString minimizedLocaleID;
     {
         CharStringByteSink sink(&minimizedLocaleID);
-        ulocimp_minimizeSubtags(fullName, sink, &status);
+        ulocimp_minimizeSubtags(fullName, sink, favorScript, &status);
     }
 
     if (U_FAILURE(status)) {
@@ -2403,8 +2407,9 @@ Locale::getLocaleCache()
 }
 
 class KeywordEnumeration : public StringEnumeration {
-private:
+protected:
     char *keywords;
+private:
     char *current;
     int32_t length;
     UnicodeString currUSKey;
@@ -2510,6 +2515,17 @@ public:
         }
         if (resultLength != nullptr) *resultLength = 0;
         return nullptr;
+    }
+    virtual int32_t count(UErrorCode &/*status*/) const override {
+        char *kw = keywords;
+        int32_t result = 0;
+        while(*kw) {
+            if (uloc_toUnicodeLocaleKey(kw) != nullptr) {
+                result++;
+            }
+            kw += uprv_strlen(kw)+1;
+        }
+        return result;
     }
 };
 
