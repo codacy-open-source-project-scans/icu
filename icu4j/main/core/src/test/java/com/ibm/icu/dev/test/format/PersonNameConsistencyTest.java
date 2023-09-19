@@ -3,11 +3,7 @@
 package com.ibm.icu.dev.test.format;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 import com.ibm.icu.dev.test.TestFmwk;
 import com.ibm.icu.dev.test.TestUtil;
@@ -28,14 +24,29 @@ import junitparams.Parameters;
  */
 @RunWith(JUnitParamsRunner.class)
 public class PersonNameConsistencyTest extends TestFmwk {
+    /**
+     * Change this to true to cause the tests that would normally be skipped to also run (without
+     * causing the test suite to fail).
+     */
+    private static boolean RUN_ALL_TESTS = false;
+
+    /**
+     * Change this to true to write log output to stdout (this is a workaround for the fact that
+     * AbstractTestLog.logln() doesn't currently do anything).
+     */
+    private static boolean VERBOSE_OUTPUT = false;
+
     private static final String DATA_PATH = TestUtil.DATA_PATH + "cldr/personNameTest/";
 
-    static private Collection<String> FILENAMES_TO_SKIP =
-         Arrays.asList("gaa.txt", "syr.txt", "lij.txt");
+    private static Map<String, String> KNOWN_ISSUES = makeKnownIssuesList();
 
-    static private Collection<String> FILENAMES_TO_SKIP_FOR_17028 =
-        Arrays.asList("yue_Hans.txt", "to.txt", "gl.txt", "ie.txt" );
+    private static Map<String, String> makeKnownIssuesList() {
+        Map<String, String> knownIssues = new HashMap<>();
 
+        // there are no current locales for which we have known issues
+
+        return knownIssues;
+    }
     static List<String> readTestCases() throws Exception {
         List<String> tests = new ArrayList<>();
         InputStream catalogFileStream = TestUtil.class.getResourceAsStream(DATA_PATH + "catalog.txt");
@@ -54,23 +65,10 @@ public class PersonNameConsistencyTest extends TestFmwk {
         return tests;
     }
 
-    private boolean shouldSkipTest(String filename, String errorMsg) {
-        if (FILENAMES_TO_SKIP.contains(filename)) {
-            return true;
-        }
-        if (FILENAMES_TO_SKIP_FOR_17028.contains(filename) &&
-                logKnownIssue("ICU-17028", errorMsg)) {
-            return true;
-        }
-        if (filename.equals("my.txt") && RBBITstUtils.skipDictionaryTest()) {
-            return true;
-        }
-        return false;
-    }
-
     @Test
     @Parameters(method = "readTestCases")
     public void TestPersonNames(String filename) throws IOException {
+        String knownIssue = KNOWN_ISSUES.get(filename);
         LineNumberReader in = new LineNumberReader(new InputStreamReader(TestUtil.class.getResourceAsStream(DATA_PATH + filename)));
         String line = null;
         PersonNameTester tester = new PersonNameTester(filename);
@@ -81,21 +79,24 @@ public class PersonNameConsistencyTest extends TestFmwk {
                 tester.processLine(line, in.getLineNumber());
             }
             errors = tester.getErrorCount();
-            System.out.println(filename + " had " + errors + " errors");
         } catch (Exception e) {
-            String errorMsg = e.toString() + " " + e.getMessage();
-            if (shouldSkipTest(filename, errorMsg)) {
-                System.out.println("Test throw exception on " + filename + ": " + errorMsg);
-                return;
+            if (knownIssue != null) {
+                logKnownIssue(knownIssue, "Exception thrown on " + filename + ": " + e.toString());
+            } else if (RUN_ALL_TESTS) {
+                logln("Exception thrown on " + filename + ": " + e.toString());
+            } else {
+                throw e;
             }
         }
+
         if (errors != 0) {
-            String errorMsg = "ERROR: Testing against '" + filename + "' contains " + errors + " errors.";
-            if (shouldSkipTest(filename, errorMsg)) {
-                  System.out.println("Test failure on " + filename + ": " + errorMsg);
-                  return;
+            if (knownIssue != null) {
+                logKnownIssue(knownIssue, "Failure in " + filename + ": Found " + errors + " errors.");
+            } else if (RUN_ALL_TESTS) {
+                logln("Failure in " + filename + ": Found " + errors + " errors.");
+            } else {
+                errln("Failure in " + filename + ": Found " + errors + " errors.");
             }
-            errln(errorMsg);
         }
     }
 
@@ -138,7 +139,7 @@ public class PersonNameConsistencyTest extends TestFmwk {
             } else if (opcode.equals("endName")) {
                 processEndNameLine();
             } else {
-                System.err.println("Unknown command '" + opcode + "' at line " + lineNumber);
+                throw new IllegalArgumentException("Unknown command '" + opcode + "' at line " + lineNumber);
             }
         }
 
@@ -239,7 +240,10 @@ public class PersonNameConsistencyTest extends TestFmwk {
         }
 
         private void reportError(String error, int lineNumber) {
-            System.out.println("    " + error + " at line " + lineNumber);
+            logln("    " + error + " at line " + lineNumber);
+            if (VERBOSE_OUTPUT) {
+                System.out.println("    " + error + " at line " + lineNumber);
+            }
             ++errorCount;
         }
     }

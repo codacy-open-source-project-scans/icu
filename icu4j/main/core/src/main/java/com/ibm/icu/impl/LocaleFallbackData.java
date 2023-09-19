@@ -348,7 +348,6 @@ class LocaleFallbackData {
         t.put("hnj_MM", "Laoo");
         t.put("hnj_SR", "Laoo");
         t.put("hnj_TH", "Laoo");
-        t.put("hnj_US", "Hmnp");
         t.put("hnj_VN", "Laoo");
         t.put("hno", "Arab");
         t.put("hoc", "Deva");
@@ -400,6 +399,8 @@ class LocaleFallbackData {
         t.put("jog", "Arab");
         t.put("jpa", "Hebr");
         t.put("jpr", "Hebr");
+        t.put("jrb", "Hebr");
+        t.put("jrb_MA", "Arab");
         t.put("jul", "Deva");
         t.put("jun", "Orya");
         t.put("juy", "Orya");
@@ -739,6 +740,7 @@ class LocaleFallbackData {
         t.put("rmi", "Armn");
         t.put("rmt", "Arab");
         t.put("rmz", "Mymr");
+        t.put("rom_BG", "Cyrl");
         t.put("rsk", "Cyrl");
         t.put("rtw", "Deva");
         t.put("ru", "Cyrl");
@@ -1092,6 +1094,7 @@ class LocaleFallbackData {
         t.put("en_GM", "en_001");
         t.put("en_GY", "en_001");
         t.put("en_HK", "en_001");
+        t.put("en_ID", "en_001");
         t.put("en_IE", "en_001");
         t.put("en_IL", "en_001");
         t.put("en_IM", "en_001");
@@ -1164,6 +1167,7 @@ class LocaleFallbackData {
         t.put("es_EC", "es_419");
         t.put("es_GT", "es_419");
         t.put("es_HN", "es_419");
+        t.put("es_JP", "es_419");
         t.put("es_MX", "es_419");
         t.put("es_NI", "es_419");
         t.put("es_PA", "es_419");

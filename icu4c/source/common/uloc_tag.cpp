@@ -1326,14 +1326,23 @@ _appendKeywordsToLanguageTag(const char* localeID, icu::ByteSink& sink, UBool st
                         attrBufLength = 0;
                         for (; i < len; i++) {
                             if (buf[i] != '-') {
-                                attrBuf[attrBufLength++] = buf[i];
+                                if (static_cast<size_t>(attrBufLength) < sizeof(attrBuf)) {
+                                    attrBuf[attrBufLength++] = buf[i];
+                                } else {
+                                    *status = U_ILLEGAL_ARGUMENT_ERROR;
+                                    return;
+                                }
                             } else {
                                 i++;
                                 break;
                             }
                         }
                         if (attrBufLength > 0) {
-                            attrBuf[attrBufLength] = 0;
+                            if (static_cast<size_t>(attrBufLength) < sizeof(attrBuf)) {
+                                attrBuf[attrBufLength] = 0;
+                            } else {
+                                *status = U_STRING_NOT_TERMINATED_WARNING;
+                            }
 
                         } else if (i >= len){
                             break;
@@ -1952,8 +1961,8 @@ _appendPrivateuseToLanguageTag(const char* localeID, icu::ByteSink& sink, UBool 
                             len = (int32_t)uprv_strlen(PRIVUSE_VARIANT_PREFIX);
                             if (reslen < capacity) {
                                 uprv_memcpy(tmpAppend + reslen, PRIVUSE_VARIANT_PREFIX, uprv_min(len, capacity - reslen));
+                                reslen += uprv_min(len, capacity - reslen);
                             }
-                            reslen += len;
 
                             if (reslen < capacity) {
                                 tmpAppend[reslen++] = SEP;
@@ -1965,8 +1974,8 @@ _appendPrivateuseToLanguageTag(const char* localeID, icu::ByteSink& sink, UBool 
                         len = (int32_t)uprv_strlen(pPriv);
                         if (reslen < capacity) {
                             uprv_memcpy(tmpAppend + reslen, pPriv, uprv_min(len, capacity - reslen));
+                            reslen += uprv_min(len, capacity - reslen);
                         }
-                        reslen += len;
                     }
                 }
                 /* reset private use starting position */
@@ -1984,6 +1993,7 @@ _appendPrivateuseToLanguageTag(const char* localeID, icu::ByteSink& sink, UBool 
 
     if (U_SUCCESS(*status)) {
         len = reslen;
+        U_ASSERT(reslen <= capacity);
         sink.Append(tmpAppend, len);
     }
 }

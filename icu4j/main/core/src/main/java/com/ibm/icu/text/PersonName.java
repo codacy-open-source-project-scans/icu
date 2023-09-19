@@ -164,8 +164,10 @@ public interface PersonName {
          * When used in conjunction with "initial", preserves the punctuation between the initials
          * as it existed in the original name field (e.g., "Jean-Claude" initializes into "J-C"
          * instead of "J.C.")  Has no effect if "initial" isn't also present in the list of modifiers.
-         * @draft ICU 74
+         * @internal
+         * @deprecated This API is ICU internal only.
          */
+        @Deprecated
         RETAIN("retain"),
 
         /**
@@ -174,7 +176,23 @@ public interface PersonName {
          * selectively.
          * @draft ICU 73
          */
-        INITIAL_CAP("initialCap");
+        INITIAL_CAP("initialCap"),
+
+        /**
+         * Requests the genitive form of the field's contents, if possible.  The default implementation
+         * does nothing, but subclasses of PersonName can override getFieldValue() to produce the genitive
+         * form (or just add an "xxx-genitive" entry to a SimplePersonName).
+         * @draft ICU 74
+         */
+        GENITIVE("genitive"),
+
+        /**
+         * Requests the vocative form of the field's contents, if possible.  The default implementation
+         * does nothing, but subclasses of PersonName can override getFieldValue() to produce the vocative
+         * form (or just add an "xxx-vocative" entry to a SimplePersonName).
+         * @draft ICU 74
+         */
+        VOCATIVE("vocative");
 
         private final String name;
 

@@ -362,7 +362,7 @@ generate-data: GODATA "$(ICUOUT)\$(ICUPKG).dat" uni-core-data
 
 ## Compare to:  source\data\Makefile.in and source\test\testdata\Makefile.in
 
-DEBUGUTILITIESDATA_DIR=main\tests\core\src\com\ibm\icu\dev\test\util
+DEBUGUTILITIESDATA_DIR=main\core\src\test\java\com\ibm\icu\dev\test\util
 DEBUGUTILITIESDATA_SRC=DebugUtilitiesData.java
 
 # Build DebugUtilitiesData.java
@@ -513,6 +513,9 @@ CLEAN : GODATA
 	"$(ICUPBIN)\icupkg" -tl $? $@
 
 "$(ICUBLD_PKG)\nfkc_cf.nrm": $(ICUSRCDATA_RELATIVE_PATH)\in\nfkc_cf.nrm
+	"$(ICUPBIN)\icupkg" -tl $? $@
+
+"$(ICUBLD_PKG)\nfkc_scf.nrm": $(ICUSRCDATA_RELATIVE_PATH)\in\nfkc_scf.nrm
 	"$(ICUPBIN)\icupkg" -tl $? $@
 
 "$(ICUBLD_PKG)\uts46.nrm": $(ICUSRCDATA_RELATIVE_PATH)\in\uts46.nrm
