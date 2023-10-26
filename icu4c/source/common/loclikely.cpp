@@ -625,31 +625,6 @@ error:
     }
 }
 
-static int32_t
-do_canonicalize(const char*    localeID,
-         char* buffer,
-         int32_t bufferCapacity,
-         UErrorCode* err)
-{
-    int32_t canonicalizedSize = uloc_canonicalize(
-        localeID,
-        buffer,
-        bufferCapacity,
-        err);
-
-    if (*err == U_STRING_NOT_TERMINATED_WARNING ||
-        *err == U_BUFFER_OVERFLOW_ERROR) {
-        return canonicalizedSize;
-    }
-    else if (U_FAILURE(*err)) {
-
-        return -1;
-    }
-    else {
-        return canonicalizedSize;
-    }
-}
-
 U_CAPI int32_t U_EXPORT2
 uloc_addLikelySubtags(const char* localeID,
                       char* maximizedLocaleID,
@@ -683,14 +658,13 @@ static UBool
 _ulocimp_addLikelySubtags(const char* localeID,
                           icu::ByteSink& sink,
                           UErrorCode* status) {
-    PreflightingLocaleIDBuffer localeBuffer;
-    do {
-        localeBuffer.requestedCapacity = do_canonicalize(localeID, localeBuffer.getBuffer(),
-            localeBuffer.getCapacity(), status);
-    } while (localeBuffer.needToTryAgain(status));
-    
+    icu::CharString localeBuffer;
+    {
+        icu::CharStringByteSink localeSink(&localeBuffer);
+        ulocimp_canonicalize(localeID, localeSink, status);
+    }
     if (U_SUCCESS(*status)) {
-        return _uloc_addLikelySubtags(localeBuffer.getBuffer(), sink, status);
+        return _uloc_addLikelySubtags(localeBuffer.data(), sink, status);
     } else {
         return false;
     }
@@ -737,13 +711,12 @@ ulocimp_minimizeSubtags(const char* localeID,
                         icu::ByteSink& sink,
                         bool favorScript,
                         UErrorCode* status) {
-    PreflightingLocaleIDBuffer localeBuffer;
-    do {
-        localeBuffer.requestedCapacity = do_canonicalize(localeID, localeBuffer.getBuffer(),
-            localeBuffer.getCapacity(), status);
-    } while (localeBuffer.needToTryAgain(status));
-    
-    _uloc_minimizeSubtags(localeBuffer.getBuffer(), sink, favorScript, status);
+    icu::CharString localeBuffer;
+    {
+        icu::CharStringByteSink localeSink(&localeBuffer);
+        ulocimp_canonicalize(localeID, localeSink, status);
+    }
+    _uloc_minimizeSubtags(localeBuffer.data(), sink, favorScript, status);
 }
 
 // Pairs of (language subtag, + or -) for finding out fast if common languages
@@ -819,19 +792,25 @@ ulocimp_getRegionForSupplementalData(const char *localeID, UBool inferRegion,
     UErrorCode rgStatus = U_ZERO_ERROR;
 
     // First check for rg keyword value
-    int32_t rgLen = uloc_getKeywordValue(localeID, "rg", rgBuf, ULOC_RG_BUFLEN, &rgStatus);
+    icu::CharString rg;
+    {
+        icu::CharStringByteSink sink(&rg);
+        ulocimp_getKeywordValue(localeID, "rg", sink, &rgStatus);
+    }
+    int32_t rgLen = rg.length();
     if (U_FAILURE(rgStatus) || rgLen < 3 || rgLen > 7) {
         rgLen = 0;
     } else {
-        // rgBuf guaranteed to be zero terminated here, with text len 6
         // chop off the subdivision code (which will generally be "zzzz" anyway)
-        if (uprv_isASCIILetter(rgBuf[0])) {
+        const char* const data = rg.data();
+        if (uprv_isASCIILetter(data[0])) {
             rgLen = 2;
-            rgBuf[0] = uprv_toupper(rgBuf[0]);
-            rgBuf[1] = uprv_toupper(rgBuf[1]);
+            rgBuf[0] = uprv_toupper(data[0]);
+            rgBuf[1] = uprv_toupper(data[1]);
         } else {
             // assume three-digit region code
             rgLen = 3;
+            uprv_memcpy(rgBuf, data, rgLen);
         }
     }
 

@@ -187,6 +187,8 @@ void CalendarTest::runIndexedTest( int32_t index, UBool exec, const char* &name,
     TESTCASE_AUTO(TestClearMonth);
 
     TESTCASE_AUTO(TestFWWithISO8601);
+    TESTCASE_AUTO(TestDangiOverflowIsLeapMonthBetween22507);
+    TESTCASE_AUTO(TestRollWeekOfYear);
 
     TESTCASE_AUTO_END;
 }
@@ -5499,6 +5501,22 @@ void CalendarTest::TestChineseCalendarMonthInSpecialYear() {
     }
 }
 
+// Test the stack will not overflow with dangi calendar during "roll".
+void CalendarTest::TestDangiOverflowIsLeapMonthBetween22507() {
+    Locale locale("en@calendar=dangi");
+    UErrorCode status = U_ZERO_ERROR;
+    LocalPointer<Calendar> cal(Calendar::createInstance(
+            *TimeZone::getGMT(), locale, status));
+    cal->clear();
+    status = U_ZERO_ERROR;
+    cal->add(UCAL_MONTH, 1242972234, status);
+    status = U_ZERO_ERROR;
+    cal->roll(UCAL_MONTH, 1249790538, status);
+    status = U_ZERO_ERROR;
+    // Without the fix, the stack will overflow during this roll().
+    cal->roll(UCAL_MONTH, 1246382666, status);
+}
+
 void CalendarTest::TestFWWithISO8601() {
     // ICU UCAL_SUNDAY is 1, UCAL_MONDAY is 2, ... UCAL_SATURDAY is 7.
     const char *locales[]  = {
@@ -5522,6 +5540,17 @@ void CalendarTest::TestFWWithISO8601() {
         msg = msg + locale + "\")->getFirstDayOfWeek()";
         assertEquals(msg.c_str(), i, cal->getFirstDayOfWeek());
     }
+}
+void CalendarTest::TestRollWeekOfYear() {
+    UErrorCode status = U_ZERO_ERROR;
+    Locale l("zh_TW@calendar=chinese");
+    LocalPointer<Calendar> cal(Calendar::createInstance(l, status), status);
+    cal->set(UCAL_EXTENDED_YEAR, -1107626);
+    cal->set(UCAL_MONTH, UCAL_JANUARY);
+    cal->set(UCAL_DATE, 1);
+    cal->roll(UCAL_WEEK_OF_YEAR, 0x7fffff, status);
+    U_ASSERT(U_SUCCESS(status));
+    cal->roll(UCAL_WEEK_OF_YEAR, 1, status);
 }
 #endif /* #if !UCONFIG_NO_FORMATTING */
 

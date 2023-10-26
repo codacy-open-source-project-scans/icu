@@ -32,7 +32,6 @@ import java.util.regex.Pattern;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 import com.ibm.icu.dev.test.TestFmwk;
 import com.ibm.icu.dev.test.TestUtil;
@@ -5397,7 +5396,7 @@ public class ULocaleTest extends TestFmwk {
 
     @Test
     public void TestLocaleCanonicalizationFromFile() throws IOException {
-        BufferedReader testFile = TestUtil.getDataReader("unicode/localeCanonicalization.txt");
+        BufferedReader testFile = TestUtil.getDataReader("cldr/localeIdentifiers/localeCanonicalization.txt");
         try {
             String line;
             while ((line = testFile.readLine()) != null) {
@@ -5419,16 +5418,6 @@ public class ULocaleTest extends TestFmwk {
             testFile.close();
         }
 
-    }
-
-    final List<String> regionsForCLDR17099 = Arrays.asList("AE", "CC", "ER", "HK", "IL", "IN", "MV", "PK", "RS", "SD", "SS");
-
-    boolean isKnownSourceForCLDR17099(String s) {
-        if (!s.startsWith("und-Latn-")) {
-            return false;
-        }
-        String tail = s.substring(9);
-        return regionsForCLDR17099.contains(tail);
     }
 
     private static final class TestCase implements Cloneable {
@@ -5461,7 +5450,7 @@ public class ULocaleTest extends TestFmwk {
     static List<TestCase> readLikelySubtagsTestCases() throws Exception {
         List<TestCase> tests = new ArrayList<>();
         TestCase test = new TestCase();
-        BufferedReader testFile = TestUtil.getDataReader("likelySubtags.txt");
+        BufferedReader testFile = TestUtil.getDataReader("cldr/localeIdentifiers/likelySubtags.txt");
         try {
             String line;
             while ((line = testFile.readLine()) != null) {
@@ -5484,28 +5473,27 @@ public class ULocaleTest extends TestFmwk {
     @Parameters(method = "readLikelySubtagsTestCases")
     public void likelySubtagsDataDriven(TestCase test) {
         ULocale l = ULocale.forLanguageTag(test.source);
-        if (!isKnownSourceForCLDR17099(test.source) && !logKnownIssue("CLDR-17099", "likelySubtags.txt wrong for certain und-Latn-XX locales")) {
-            if (test.addLikely.equals("FAIL")) {
-                assertEquals("addLikelySubtags(" + test.source + ") should be unchanged",
-                    l, ULocale.addLikelySubtags(l));
-            } else {
-                assertEquals("addLikelySubtags(" + test.source + ")",
-                    test.addLikely, ULocale.addLikelySubtags(l).toLanguageTag());
-            }
-            if (test.removeFavorRegion.equals("FAIL")) {
-                assertEquals("minimizeSubtags(" + test.source + ") should be unchanged",
-                    l, ULocale.minimizeSubtags(l));
-            } else {
-                assertEquals("minimizeSubtags(" + test.source + ")",
-                    test.removeFavorRegion, ULocale.minimizeSubtags(l).toLanguageTag());
-            }
-            if (test.removeFavorScript.equals("FAIL")) {
-                assertEquals("minimizeSubtags(" + test.source + ") - FAVOR_SCRIPT should be unchanged",
-                    l, ULocale.minimizeSubtags(l, ULocale.Minimize.FAVOR_SCRIPT));
-            } else {
-                assertEquals("minimizeSubtags(" + test.source + ") - FAVOR_SCRIPT",
-                    test.removeFavorScript, ULocale.minimizeSubtags(l, ULocale.Minimize.FAVOR_SCRIPT).toLanguageTag());
-            }
+
+        if (test.addLikely.equals("FAIL")) {
+            assertEquals("addLikelySubtags(" + test.source + ") should be unchanged",
+                l, ULocale.addLikelySubtags(l));
+        } else {
+            assertEquals("addLikelySubtags(" + test.source + ")",
+                test.addLikely, ULocale.addLikelySubtags(l).toLanguageTag());
+        }
+        if (test.removeFavorRegion.equals("FAIL")) {
+            assertEquals("minimizeSubtags(" + test.source + ") should be unchanged",
+                l, ULocale.minimizeSubtags(l));
+        } else {
+            assertEquals("minimizeSubtags(" + test.source + ")",
+                test.removeFavorRegion, ULocale.minimizeSubtags(l).toLanguageTag());
+        }
+        if (test.removeFavorScript.equals("FAIL")) {
+            assertEquals("minimizeSubtags(" + test.source + ") - FAVOR_SCRIPT should be unchanged",
+                l, ULocale.minimizeSubtags(l, ULocale.Minimize.FAVOR_SCRIPT));
+        } else {
+            assertEquals("minimizeSubtags(" + test.source + ") - FAVOR_SCRIPT",
+                test.removeFavorScript, ULocale.minimizeSubtags(l, ULocale.Minimize.FAVOR_SCRIPT).toLanguageTag());
         }
     }
 }
