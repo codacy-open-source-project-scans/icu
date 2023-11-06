@@ -929,8 +929,8 @@ LocaleTest::TestGetLangsAndCountries()
       ;
 
     /* TODO: Change this test to be more like the cloctst version? */
-    if (testCount != 596)
-        errln("Expected getISOLanguages() to return 596 languages; it returned %d", testCount);
+    if (testCount != 601)
+        errln("Expected getISOLanguages() to return 601 languages; it returned %d", testCount);
     else {
         for (i = 0; i < 15; i++) {
             int32_t j;
@@ -3842,6 +3842,60 @@ LocaleTest::TestAddLikelyAndMinimizeSubtags() {
             "und_US",
             "en_Latn_US",
             "en"
+        }, {
+            // ICU-22547
+            // unicode_language_id = "root" |
+            //   (unicode_language_subtag (sep unicode_script_subtag)?  | unicode_script_subtag)
+            //     (sep unicode_region_subtag)?  (sep unicode_variant_subtag)* ;
+            // so "aaaa" is a well-formed unicode_language_id
+            "aaaa",
+            "aaaa",
+            "aaaa",
+        }, {
+            // ICU-22546
+            "und-Zzzz",
+            "en_Latn_US", // If change, please also update common/unicode/locid.h
+            "en"
+        }, {
+            // ICU-22546
+            "en",
+            "en_Latn_US", // If change, please also update common/unicode/locid.h
+            "en"
+        }, {
+            // ICU-22546
+            "de",
+            "de_Latn_DE", // If change, please also update common/unicode/locid.h
+            "de"
+        }, {
+            // ICU-22546
+            "sr",
+            "sr_Cyrl_RS", // If change, please also update common/unicode/locid.h
+            "sr"
+        }, {
+            // ICU-22546
+            "sh",
+            "sh",// If change, please also update common/unicode/locid.h
+            "sh"
+        }, {
+            // ICU-22546
+            "zh_Hani",
+            "zh_Hani_CN", // If change, please also update common/unicode/locid.h
+            "zh_Hani"
+        }, {
+            // ICU-22545
+            "en_XA",
+            "en_XA",
+            "en_XA",
+        }, {
+            // ICU-22545
+            "en_XB",
+            "en_XB",
+            "en_XB",
+        }, {
+            // ICU-22545
+            "en_XC",
+            "en_XC",
+            "en_XC",
         }
     };
 

@@ -26,6 +26,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import com.ibm.icu.dev.test.CoreTestFmwk;
 import com.ibm.icu.text.DateFormat;
 import com.ibm.icu.text.NumberFormat;
 import com.ibm.icu.text.SimpleDateFormat;
@@ -46,7 +47,7 @@ import com.ibm.icu.util.ULocale;
  * 4174361 4177484 4197699 4209071 4288792
  */
 @RunWith(JUnit4.class)
-public class CalendarRegressionTest extends com.ibm.icu.dev.test.TestFmwk {
+public class CalendarRegressionTest extends CoreTestFmwk {
     static final String[] FIELD_NAME = {
             "ERA", "YEAR", "MONTH", "WEEK_OF_YEAR", "WEEK_OF_MONTH",
             "DAY_OF_MONTH", "DAY_OF_YEAR", "DAY_OF_WEEK",
@@ -2710,5 +2711,17 @@ public class CalendarRegressionTest extends com.ibm.icu.dev.test.TestFmwk {
                     Calendar.getInstance(Locale.forLanguageTag(localeIds[i])).getFirstDayOfWeek());
         }
     }
+
+    @Test
+    public void TestIslamicUmalquraCalendarSlow() { // ICU-22513
+        Locale loc = new Locale("th@calendar=islamic-umalqura");
+        Calendar cal = Calendar.getInstance(loc);
+        cal.clear();
+        cal.add(Calendar.YEAR, 1229080905);
+        cal.roll(Calendar.WEEK_OF_MONTH, 1499050699);
+        cal.fieldDifference(new Date(0), Calendar.YEAR_WOY);
+
+    }
+
 }
 //eof

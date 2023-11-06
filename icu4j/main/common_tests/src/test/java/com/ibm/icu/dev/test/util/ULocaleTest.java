@@ -33,7 +33,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import com.ibm.icu.dev.test.TestFmwk;
+import com.ibm.icu.dev.test.CoreTestFmwk;
 import com.ibm.icu.dev.test.TestUtil;
 import com.ibm.icu.dev.test.TestUtil.JavaVendor;
 import com.ibm.icu.text.DateFormat;
@@ -59,7 +59,7 @@ import junitparams.JUnitParamsRunner;
 import junitparams.Parameters;
 
 @RunWith(JUnitParamsRunner.class)
-public class ULocaleTest extends TestFmwk {
+public class ULocaleTest extends CoreTestFmwk {
 
     // Ticket #8078 and #11674
     private static final boolean JAVA7_OR_LATER =
@@ -1917,6 +1917,50 @@ public class ULocaleTest extends TestFmwk {
                 }, {
                     "zzz",
                     ""
+                }, {
+                    // ICU-22547
+                    // unicode_language_id = "root" |
+                    //   (unicode_language_subtag (sep unicode_script_subtag)?  | unicode_script_subtag)
+                    //     (sep unicode_region_subtag)?  (sep unicode_variant_subtag)* ;
+                    // so "aaaa" is a well-formed unicode_language_id
+                    "aaaa",
+                    "aaaa",
+                }, {
+                    // ICU-22546
+                    "und-Zzzz",
+                    "en_Latn_US" // If change, please also update ULocale.java
+                }, {
+                    // ICU-22546
+                    "en",
+                    "en_Latn_US" // If change, please also update ULocale.java
+                }, {
+                    // ICU-22546
+                    "de",
+                    "de_Latn_DE" // If change, please also update ULocale.java
+                }, {
+                    // ICU-22546
+                    "sr",
+                    "sr_Cyrl_RS" // If change, please also update ULocale.java
+                }, {
+                    // ICU-22546
+                    "sh",
+                    "sh" // If change, please also update ULocale.java
+                }, {
+                    // ICU-22546
+                    "zh_Hani",
+                    "zh_Hani_CN" // If change, please also update ULocale.java
+                }, {
+                    // ICU-22545
+                    "en_XA",
+                    "en_XA",
+                }, {
+                    // ICU-22545
+                    "en_XB",
+                    "en_XB",
+                }, {
+                    // ICU-22545
+                    "en_XC",
+                    "en_XC",
                 }
         };
 
@@ -4125,7 +4169,7 @@ public class ULocaleTest extends TestFmwk {
 
         cldrVersion = LocaleData.getCLDRVersion();
 
-        TestFmwk.logln("uloc_getCLDRVersion() returned: '"+cldrVersion+"'");
+        logln("uloc_getCLDRVersion() returned: '"+cldrVersion+"'");
 
         // why isn't this public for tests somewhere?
         final ClassLoader testLoader = ICUResourceBundleTest.class.getClassLoader();

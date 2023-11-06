@@ -35,7 +35,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import com.ibm.icu.dev.test.TestFmwk;
+import com.ibm.icu.dev.test.CoreTestFmwk;
 import com.ibm.icu.dev.test.serializable.FormatHandler;
 import com.ibm.icu.dev.test.serializable.SerializableTestUtility;
 import com.ibm.icu.impl.Pair;
@@ -60,7 +60,7 @@ import com.ibm.icu.util.ULocale;
  * @author markdavis
  */
 @RunWith(JUnit4.class)
-public class MeasureUnitTest extends TestFmwk {
+public class MeasureUnitTest extends CoreTestFmwk {
 
     static class OrderedPair<F extends Comparable, S extends Comparable> extends Pair<F, S> implements Comparable<OrderedPair<F, S>> {
 
@@ -4623,6 +4623,8 @@ public class MeasureUnitTest extends TestFmwk {
         }
 
         TestCase cases[] = {
+            new TestCase(MeasureUnit.MeasurePrefix.QUECTO, 10, -30),
+            new TestCase(MeasureUnit.MeasurePrefix.RONTO, 10, -27),
             new TestCase(MeasureUnit.MeasurePrefix.YOCTO, 10, -24),
             new TestCase(MeasureUnit.MeasurePrefix.ZEPTO, 10, -21),
             new TestCase(MeasureUnit.MeasurePrefix.ATTO, 10, -18),
@@ -4644,6 +4646,8 @@ public class MeasureUnitTest extends TestFmwk {
             new TestCase(MeasureUnit.MeasurePrefix.EXA, 10, 18),
             new TestCase(MeasureUnit.MeasurePrefix.ZETTA, 10, 21),
             new TestCase(MeasureUnit.MeasurePrefix.YOTTA, 10, 24),
+            new TestCase(MeasureUnit.MeasurePrefix.RONNA, 10, 27),
+            new TestCase(MeasureUnit.MeasurePrefix.QUETTA, 10, 30),
             new TestCase(MeasureUnit.MeasurePrefix.KIBI, 1024, 1),
             new TestCase(MeasureUnit.MeasurePrefix.MEBI, 1024, 2),
             new TestCase(MeasureUnit.MeasurePrefix.GIBI, 1024, 3),
