@@ -42,14 +42,17 @@ FUZZER_TARGETS = \
 		 list_format_fuzzer locale_fuzzer \
 		 locale_morph_fuzzer \
 		 number_format_fuzzer \
+		 number_formatter_fuzzer \
 		 relative_date_time_formatter_fuzzer \
 		 rule_based_break_iterator_fuzzer \
+		 timezone_create_fuzzer \
 		 ucasemap_fuzzer \
 		 uloc_canonicalize_fuzzer \
 		 uloc_for_language_tag_fuzzer \
 		 uloc_get_name_fuzzer \
 		 uloc_is_right_to_left_fuzzer \
 		 uloc_open_keywords_fuzzer \
+		 unicodeset_fuzzer \
 		 unicode_string_codepage_create_fuzzer \
 		 uprop_fuzzer \
 		 uregex_open_fuzzer \
