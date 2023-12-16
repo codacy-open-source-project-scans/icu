@@ -144,6 +144,11 @@ void RBBITest::runIndexedTest( int32_t index, UBool exec, const char* &name, cha
     TESTCASE_AUTO(TestRandomAccess);
     TESTCASE_AUTO(TestExternalBreakEngineWithFakeTaiLe);
     TESTCASE_AUTO(TestExternalBreakEngineWithFakeYue);
+    TESTCASE_AUTO(TestBug22579);
+    TESTCASE_AUTO(TestBug22581);
+    TESTCASE_AUTO(TestBug22584);
+    TESTCASE_AUTO(TestBug22585);
+    TESTCASE_AUTO(TestBug22602);
 
 #if U_ENABLE_TRACING
     TESTCASE_AUTO(TestTraceCreateCharacter);
@@ -5858,4 +5863,63 @@ void RBBITest::TestExternalBreakEngineWithFakeTaiLe() {
                expected2 == actual2);
 }
 
+// Test a single unpaired unpaired char (either surrogate low or high) in
+// an Unicode set will not cause infinity loop.
+void RBBITest::TestBug22585() {
+    UnicodeString rule = u"$a=[";
+    rule.append(0xdecb) // an unpaired surrogate high
+        .append("];");
+    UParseError pe {};
+    UErrorCode ec {U_ZERO_ERROR};
+    RuleBasedBreakIterator bi(rule, pe, ec);
+
+    rule = u"$a=[";
+    rule.append(0xd94e) // an unpaired surrogate low
+        .append("];");
+    ec = U_ZERO_ERROR;
+    RuleBasedBreakIterator bi2(rule, pe, ec);
+}
+
+// Test a long string with a ; in the end will not cause stack overflow.
+void RBBITest::TestBug22602() {
+    UnicodeString rule(25000, (UChar32)'A', 25000-1);
+    rule.append(u";");
+    UParseError pe {};
+    UErrorCode ec {U_ZERO_ERROR};
+    RuleBasedBreakIterator bi(rule, pe, ec);
+}
+
+void RBBITest::TestBug22584() {
+    // Creating a break iterator from a rule consisting of a very long
+    // literal input string caused a stack overflow when deleting the
+    // parse tree for the input during the rule building process.
+
+    // Failure of this test showed as a crash during the break iterator construction.
+
+    UnicodeString ruleStr(100000, (UChar32)0, 100000);
+    UParseError pe {};
+    UErrorCode ec {U_ZERO_ERROR};
+
+    RuleBasedBreakIterator bi(ruleStr, pe, ec);
+    ec = U_ZERO_ERROR;
+    ruleStr = u"a/b;c";
+    RuleBasedBreakIterator bi2(ruleStr, pe, ec);
+}
+
+void RBBITest::TestBug22579() {
+    // Test not causing null deref in cloneTree
+    UnicodeString ruleStr = u"[{ab}];";
+    UParseError pe {};
+    UErrorCode ec {U_ZERO_ERROR};
+
+    RuleBasedBreakIterator bi(ruleStr, pe, ec);
+}
+void RBBITest::TestBug22581() {
+    // Test duplicate variable setting will not leak the rule compilation
+    UnicodeString ruleStr = u"$foo=[abc]; $foo=[xyz]; $foo;";
+    UParseError pe {};
+    UErrorCode ec {U_ZERO_ERROR};
+
+    RuleBasedBreakIterator bi(ruleStr, pe, ec);
+}
 #endif // #if !UCONFIG_NO_BREAK_ITERATION

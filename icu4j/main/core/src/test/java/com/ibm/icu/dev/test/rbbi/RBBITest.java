@@ -10,6 +10,7 @@ package com.ibm.icu.dev.test.rbbi;
 
 import java.text.CharacterIterator;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -908,7 +909,7 @@ public class RBBITest extends CoreTestFmwk {
         assertEquals("Wrong number of breaks found", 2, breaksFound);
     }
 
-    /* Test handling of unpair surrogate.
+    /* Test handling of unpaired surrogate.
      */
     @Test
     public void TestUnpairedSurrogate() {
@@ -919,24 +920,24 @@ public class RBBITest extends CoreTestFmwk {
 
         try {
             new RuleBasedBreakIterator("a\ud800b;");
-            fail("TestUnpairedSurrogate: RuleBasedBreakIterator() failed to throw an exception with unpair low surrogate.");
+            fail("TestUnpairedSurrogate: RuleBasedBreakIterator() failed to throw an exception with unpaired low surrogate.");
         }
         catch (IllegalArgumentException e) {
-            // expected exception with unpair surrogate.
+            // expected exception with unpaired surrogate.
         }
         catch (Exception e) {
-            fail("TestUnpairedSurrogate: Unexpected exception while new RuleBasedBreakIterator() with unpair low surrogate: " + e);
+            fail("TestUnpairedSurrogate: Unexpected exception while new RuleBasedBreakIterator() with unpaired low surrogate: " + e);
         }
 
         try {
             new RuleBasedBreakIterator("a\ude00b;");
-            fail("TestUnpairedSurrogate: RuleBasedBreakIterator() failed to throw an exception with unpair high surrogate.");
+            fail("TestUnpairedSurrogate: RuleBasedBreakIterator() failed to throw an exception with unpaired high surrogate.");
         }
         catch (IllegalArgumentException e) {
-            // expected exception with unpair surrogate.
+            // expected exception with unpaired surrogate.
         }
         catch (Exception e) {
-            fail("TestUnpairedSurrogate: Unexpected exception while new RuleBasedBreakIterator() with unpair high surrogate: " + e);
+            fail("TestUnpairedSurrogate: Unexpected exception while new RuleBasedBreakIterator() with unpaired high surrogate: " + e);
         }
 
 
@@ -946,6 +947,61 @@ public class RBBITest extends CoreTestFmwk {
         assertEquals("Rules does not match", rules, bi.toString());
     }
 
+    @Test
+    public void TestBug22579() {
+        try {
+            new RuleBasedBreakIterator("[{ab}];");
+            fail("TestBug22579: RuleBasedBreakIterator() failed to throw an exception with only string in an Unicode set.");
+        }
+        catch (IllegalArgumentException e) {
+            // expected exception with only string inside an Unicode set.
+        }
+        catch (Exception e) {
+            fail("TestBug22579: Unexpected exception while new RuleBasedBreakIterator() with only string in an Unicode Set: " + e);
+        }
+
+    }
+    @Test
+    public void TestBug22585() {
+        try {
+            new RuleBasedBreakIterator("$a=[\udecb];");
+            fail("TestBug22585: RuleBasedBreakIterator() failed to throw an exception with unpaired high surrogate.");
+        }
+        catch (IllegalArgumentException e) {
+            // expected exception with unpaired surrogate.
+        }
+        catch (Exception e) {
+            fail("TestBug22585: Unexpected exception while new RuleBasedBreakIterator() with unpaired high surrogate: " + e);
+        }
+
+        try {
+            new RuleBasedBreakIterator("$a=[\ud94e];");
+            fail("TestBug22585: RuleBasedBreakIterator() failed to throw an exception with unpaired low surrogate.");
+        }
+        catch (IllegalArgumentException e) {
+            // expected exception with unpaired surrogate.
+        }
+        catch (Exception e) {
+            fail("TestBug22585: Unexpected exception while new RuleBasedBreakIterator() with unpaired low surrogate: " + e);
+        }
+    }
+    @Test
+    public void TestBug22602() {
+        try {
+            char[] charArray = new char[25000];
+            Arrays.fill(charArray, 'A');
+            charArray[charArray.length-1] = ';';
+            String rules = new String(charArray);
+            RuleBasedBreakIterator bi = new RuleBasedBreakIterator(rules);
+            fail("TestBug22602: RuleBasedBreakIterator() failed to throw an exception with a long string followed by a ';'.");
+        }
+        catch (IllegalArgumentException e) {
+            // expected exception with a long string followed by a ';'.
+        }
+        catch(StackOverflowError e) {
+            fail("TestBug22602: Unexpected exception while new RuleBasedBreakIterator() with a long string followed by a ';': " + e);
+        }
+    }
     /* Test preceding(index) and following(index), with semi-random indexes.
      * The random indexes are produced in clusters that are relatively closely spaced,
      * to increase the occurrences of hits to the internal break cache.

@@ -770,7 +770,7 @@ class RBBIRuleScanner {
         //  These are recognized in all contexts, whether in quoted text or not.
         //
         if (c.fChar == '\'') {
-            if (UTF16.charAt(fRB.fRules, fNextIndex) == '\'') {
+            if (fNextIndex < fRB.fRules.length() && UTF16.charAt(fRB.fRules, fNextIndex) == '\'') {
                 c.fChar = nextCharLL(); // get nextChar officially so character counts
                 c.fEscaped = true; //   stay correct.
             } else {
@@ -786,6 +786,9 @@ class RBBIRuleScanner {
                 c.fEscaped = false; // The paren that we return is not escaped.
                 return;
             }
+        }
+        if (c.fChar == -1) {
+            return;
         }
 
         if (fQuoteMode) {
@@ -1059,7 +1062,11 @@ class RBBIRuleScanner {
 
         // Verify that the set contains at least one code point.
         //
-        if (uset.isEmpty()) {
+        // Use tempSet to handle the case that the UnicodeSet contains
+        // only string element, such as [{ab}] and treat it as empty set.
+        UnicodeSet tempSet = new UnicodeSet(uset);
+        tempSet.removeAllStrings();
+        if (tempSet.isEmpty()) {
             // This set is empty.
             //  Make it an error, because it almost certainly is not what the user wanted.
             //  Also, avoids having to think about corner cases in the tree manipulation code
