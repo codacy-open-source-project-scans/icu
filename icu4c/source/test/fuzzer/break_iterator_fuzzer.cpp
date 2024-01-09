@@ -67,7 +67,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   utext_close(fuzzstr);
 
-  icu::Locale locale2(reinterpret_cast<const char*>(data));
+  std::string str(reinterpret_cast<const char*>(data), size);
+  icu::Locale locale2(str.c_str()); // ensure null-termination by c_str()
   switch (rnd8 % 5) {
     case 0:
       bi.reset(icu::BreakIterator::createWordInstance(locale2, status));
