@@ -191,6 +191,14 @@ void CalendarTest::runIndexedTest( int32_t index, UBool exec, const char* &name,
     TESTCASE_AUTO(TestRollWeekOfYear);
     TESTCASE_AUTO(TestFirstDayOfWeek);
 
+    TESTCASE_AUTO(Test22633ChineseOverflow);
+    TESTCASE_AUTO(Test22633IndianOverflow);
+    TESTCASE_AUTO(Test22633IslamicUmalquraOverflow);
+    TESTCASE_AUTO(Test22633PersianOverflow);
+
+    TESTCASE_AUTO(TestAddOverflow);
+
+
     TESTCASE_AUTO(TestChineseCalendarComputeMonthStart);
 
     TESTCASE_AUTO_END;
@@ -5631,12 +5639,45 @@ void CalendarTest::TestFirstDayOfWeek() {
     verifyFirstDayOfWeek("zxx", UCAL_MONDAY);
 }
 
+void CalendarTest::Test22633ChineseOverflow() {
+    UErrorCode status = U_ZERO_ERROR;
+    LocalPointer<Calendar> cal(Calendar::createInstance(Locale("en@calendar=chinese"), status), status);
+    U_ASSERT(U_SUCCESS(status));
+    cal->setTime(2043071457431218011677338081118001787485161156097100985923226601036925437809699842362992455895409920480414647512899096575018732258582416938813614617757317338664031880042592085084690242819214720523061081124318514531466365480449329351434046537728.000000, status);
+    U_ASSERT(U_SUCCESS(status));
+    cal->set(UCAL_EXTENDED_YEAR, -1594662558);
+    cal->get(UCAL_YEAR, status);
+    assertTrue("Should return success", U_SUCCESS(status));
+}
+void CalendarTest::Test22633IndianOverflow() {
+    UErrorCode status = U_ZERO_ERROR;
+    LocalPointer<Calendar> cal(Calendar::createInstance(Locale("en@calendar=indian"), status), status);
+    U_ASSERT(U_SUCCESS(status));
+    cal->roll(UCAL_EXTENDED_YEAR, -2120158417, status);
+    assertTrue("Should return success", U_SUCCESS(status));
+}
+void CalendarTest::Test22633IslamicUmalquraOverflow() {
+    UErrorCode status = U_ZERO_ERROR;
+    LocalPointer<Calendar> cal(Calendar::createInstance(Locale("en@calendar=islamic-umalqura"), status), status);
+    U_ASSERT(U_SUCCESS(status));
+    cal->roll(UCAL_YEAR, -134404585, status);
+    assertTrue("Should return success", U_SUCCESS(status));
+}
+
+void CalendarTest::Test22633PersianOverflow() {
+    UErrorCode status = U_ZERO_ERROR;
+    LocalPointer<Calendar> cal(Calendar::createInstance(Locale("en@calendar=persian"), status), status);
+    U_ASSERT(U_SUCCESS(status));
+    cal->add(UCAL_ORDINAL_MONTH, 1594095615, status);
+    assertTrue("Should return success", U_SUCCESS(status));
+}
+
 void CalendarTest::TestChineseCalendarComputeMonthStart() {  // ICU-22639
     UErrorCode status = U_ZERO_ERROR;
 
     // An extended year for which hasLeapMonthBetweenWinterSolstices is true.
     constexpr int32_t eyear = 4643;
-    constexpr int32_t monthStart = 2453764;
+    constexpr int64_t monthStart = 2453764;
 
     LocalPointer<Calendar> calendar(
         Calendar::createInstance(Locale("en_US@calendar=chinese"), status),
@@ -5659,6 +5700,48 @@ void CalendarTest::TestChineseCalendarComputeMonthStart() {  // ICU-22639
                 chinese.hasLeapMonthBetweenWinterSolstices);
 }
 
+void CalendarTest::TestAddOverflow() {
+    UErrorCode status = U_ZERO_ERROR;
+
+    LocalPointer<Calendar> calendar(
+        Calendar::createInstance(Locale("en"), status),
+        status);
+    if (failure(status, "Calendar::createInstance")) return;
+    for (int32_t i = 0; i < UCAL_FIELD_COUNT; i++) {
+        status = U_ZERO_ERROR;
+        calendar->setTime(0, status);
+        calendar->add(static_cast<UCalendarDateFields>(i), INT32_MAX / 2, status);
+        calendar->add(static_cast<UCalendarDateFields>(i), INT32_MAX, status);
+        if ((i == UCAL_ERA) ||
+            (i == UCAL_YEAR) ||
+            (i == UCAL_YEAR_WOY) ||
+            (i == UCAL_EXTENDED_YEAR) ||
+            (i == UCAL_IS_LEAP_MONTH) ||
+            (i == UCAL_MONTH) ||
+            (i == UCAL_ORDINAL_MONTH) ||
+            (i == UCAL_ZONE_OFFSET) ||
+            (i == UCAL_DST_OFFSET)) {
+            assertTrue("add INT32_MAX should fail", U_FAILURE(status));
+        } else {
+            assertTrue("add INT32_MAX should still success", U_SUCCESS(status));
+        }
+
+        status = U_ZERO_ERROR;
+        calendar->setTime(0, status);
+        calendar->add(static_cast<UCalendarDateFields>(i), INT32_MIN / 2, status);
+        calendar->add(static_cast<UCalendarDateFields>(i), INT32_MIN, status);
+        if ((i == UCAL_YEAR) ||
+            (i == UCAL_YEAR_WOY) ||
+            (i == UCAL_EXTENDED_YEAR) ||
+            (i == UCAL_IS_LEAP_MONTH) ||
+            (i == UCAL_ZONE_OFFSET) ||
+            (i == UCAL_DST_OFFSET)) {
+            assertTrue("add INT32_MIN should fail", U_FAILURE(status));
+        } else {
+            assertTrue("add INT32_MIN should still success", U_SUCCESS(status));
+        }
+    }
+}
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
 //eof

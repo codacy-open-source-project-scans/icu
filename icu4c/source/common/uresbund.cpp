@@ -94,8 +94,16 @@ static UBool chopLocale(char *name) {
 
 static UBool hasVariant(const char* localeID) {
     UErrorCode err = U_ZERO_ERROR;
-    int32_t variantLength = uloc_getVariant(localeID, nullptr, 0, &err);
-    return variantLength != 0;
+    CheckedArrayByteSink sink(nullptr, 0);
+    ulocimp_getSubtags(
+            localeID,
+            nullptr,
+            nullptr,
+            nullptr,
+            &sink,
+            nullptr,
+            err);
+    return sink.NumberOfBytesAppended() != 0;
 }
 
 // This file contains the tables for doing locale fallback, which are generated
@@ -209,17 +217,11 @@ static bool getParentLocaleID(char *name, const char *origName, UResOpenType ope
     }
     
     UErrorCode err = U_ZERO_ERROR;
-    const char* tempNamePtr = name;
-    CharString language = ulocimp_getLanguage(tempNamePtr, &tempNamePtr, err);
-    if (*tempNamePtr == '_') {
-        ++tempNamePtr;
-    }
-    CharString script = ulocimp_getScript(tempNamePtr, &tempNamePtr, err);
-    if (*tempNamePtr == '_') {
-        ++tempNamePtr;
-    }
-    CharString region = ulocimp_getCountry(tempNamePtr, &tempNamePtr, err);
-    CharString workingLocale;
+    CharString language;
+    CharString script;
+    CharString region;
+    ulocimp_getSubtags(name, &language, &script, &region, nullptr, nullptr, err);
+
     if (U_FAILURE(err)) {
         // hopefully this never happens...
         return chopLocale(name);
@@ -238,6 +240,8 @@ static bool getParentLocaleID(char *name, const char *origName, UResOpenType ope
         }
     }
 
+    CharString workingLocale;
+
     // if it's not in the parent locale table, figure out the fallback script algorithmically
     // (see CLDR-15265 for an explanation of the algorithm)
     if (!script.isEmpty() && !region.isEmpty()) {
@@ -254,12 +258,9 @@ static bool getParentLocaleID(char *name, const char *origName, UResOpenType ope
         // - if yes, replace the region with the script from the original locale ID
         // - if no, replace the region with the default script for that language and region
         UErrorCode err = U_ZERO_ERROR;
-        tempNamePtr = origName;
-        CharString origNameLanguage = ulocimp_getLanguage(tempNamePtr, &tempNamePtr, err);
-        if (*tempNamePtr == '_') {
-            ++tempNamePtr;
-        }
-        CharString origNameScript = ulocimp_getScript(origName, nullptr, err);
+        CharString origNameLanguage;
+        CharString origNameScript;
+        ulocimp_getSubtags(origName, &origNameLanguage, &origNameScript, nullptr, nullptr, nullptr, err);
         if (!origNameScript.isEmpty()) {
             workingLocale.append(language, err).append("_", err).append(origNameScript, err);
         } else {
@@ -3256,11 +3257,9 @@ ures_getFunctionalEquivalent(char *result, int32_t resultCapacity,
         if (res != NULL && uprv_strcmp(resName, "collations") == 0) {
             const char *validLoc = ures_getLocaleByType(res, ULOC_VALID_LOCALE, &subStatus);
             if (U_SUCCESS(subStatus) && validLoc != NULL && validLoc[0] != 0 && uprv_strcmp(validLoc, "root") != 0) {
-                char validLang[ULOC_LANG_CAPACITY];
-                char parentLang[ULOC_LANG_CAPACITY];
-                uloc_getLanguage(validLoc, validLang, ULOC_LANG_CAPACITY, &subStatus);
-                uloc_getLanguage(parent.data(), parentLang, ULOC_LANG_CAPACITY, &subStatus);
-                if (U_SUCCESS(subStatus) && uprv_strcmp(validLang, parentLang) != 0) {
+                CharString validLang = ulocimp_getLanguage(validLoc, subStatus);
+                CharString parentLang = ulocimp_getLanguage(parent.data(), subStatus);
+                if (U_SUCCESS(subStatus) && validLang != parentLang) {
                     // validLoc is not root and has a different language than parent, use it instead
                     found.clear().append(validLoc, subStatus);
                     haveFound = true;

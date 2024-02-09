@@ -283,8 +283,7 @@ static ECalType getCalendarTypeForLocale(const char *locid) {
 
     // when calendar keyword is not available or not supported, read supplementalData
     // to get the default calendar type for the locale's region
-    char region[ULOC_COUNTRY_CAPACITY];
-    (void)ulocimp_getRegionForSupplementalData(canonicalName.data(), true, region, sizeof(region), &status);
+    CharString region = ulocimp_getRegionForSupplementalData(canonicalName.data(), true, &status);
     if (U_FAILURE(status)) {
         return CALTYPE_GREGORIAN;
     }
@@ -292,7 +291,7 @@ static ECalType getCalendarTypeForLocale(const char *locid) {
     // Read preferred calendar values from supplementalData calendarPreference
     UResourceBundle *rb = ures_openDirect(nullptr, "supplementalData", &status);
     ures_getByKey(rb, "calendarPreferenceData", rb, &status);
-    UResourceBundle *order = ures_getByKey(rb, region, nullptr, &status);
+    UResourceBundle *order = ures_getByKey(rb, region.data(), nullptr, &status);
     if (status == U_MISSING_RESOURCE_ERROR && rb != nullptr) {
         status = U_ZERO_ERROR;
         order = ures_getByKey(rb, "001", nullptr, &status);
@@ -2129,9 +2128,19 @@ void Calendar::add(UCalendarDateFields field, int32_t amount, UErrorCode& status
 
     switch (field) {
     case UCAL_ERA:
-        set(field, get(field, status) + amount);
+      {
+        int32_t era = get(UCAL_ERA, status);
+        if (U_FAILURE(status)) {
+            return;
+        }
+        if (uprv_add32_overflow(era, amount, &era)) {
+            status = U_ILLEGAL_ARGUMENT_ERROR;
+            return;
+        }
+        set(UCAL_ERA, era);
         pinField(UCAL_ERA, status);
         return;
+      }
 
     case UCAL_YEAR:
     case UCAL_YEAR_WOY:
@@ -2147,7 +2156,10 @@ void Calendar::add(UCalendarDateFields field, int32_t amount, UErrorCode& status
         if (era == 0) {
           const char * calType = getType();
           if ( uprv_strcmp(calType,"gregorian")==0 || uprv_strcmp(calType,"roc")==0 || uprv_strcmp(calType,"coptic")==0 ) {
-            amount = -amount;
+            if (uprv_mul32_overflow(amount, -1, &amount)) {
+                status = U_ILLEGAL_ARGUMENT_ERROR;
+                return;
+            }
           }
         }
       }
@@ -2159,7 +2171,16 @@ void Calendar::add(UCalendarDateFields field, int32_t amount, UErrorCode& status
       {
         UBool oldLenient = isLenient();
         setLenient(true);
-        set(field, get(field, status) + amount);
+        int32_t value = get(field, status);
+        if (U_FAILURE(status)) {
+            return;
+        }
+        if (uprv_add32_overflow(value, amount, &value)) {
+            status = U_ILLEGAL_ARGUMENT_ERROR;
+            return;
+        }
+        set(field, value);
+
         pinField(UCAL_DAY_OF_MONTH, status);
         if(oldLenient==false) {
           complete(status); /* force recalculate */
@@ -3391,11 +3412,20 @@ int32_t Calendar::handleComputeJulianDay(UCalendarDateFields bestField, UErrorCo
         } else {
             dayOfMonth = getDefaultDayInMonth(year, month);
         }
-        return julianDay + dayOfMonth;
+        if (uprv_add32_overflow(dayOfMonth, julianDay, &dayOfMonth)) {
+            status = U_ILLEGAL_ARGUMENT_ERROR;
+            return 0;
+        }
+        return dayOfMonth;
     }
 
     if (bestField == UCAL_DAY_OF_YEAR) {
-        return julianDay + internalGet(UCAL_DAY_OF_YEAR);
+        int32_t result;
+        if (uprv_add32_overflow(internalGet(UCAL_DAY_OF_YEAR), julianDay, &result)) {
+            status = U_ILLEGAL_ARGUMENT_ERROR;
+            return 0;
+        }
+        return result;
     }
 
     int32_t firstDayOfWeek = getFirstDayOfWeek(); // Localized fdw
@@ -4005,13 +4035,12 @@ Calendar::setWeekData(const Locale& desiredLocale, const char *type, UErrorCode&
         return;
     }
 
-    char region[ULOC_COUNTRY_CAPACITY];
-    (void)ulocimp_getRegionForSupplementalData(desiredLocale.getName(), true, region, sizeof(region), &status);
+    CharString region = ulocimp_getRegionForSupplementalData(desiredLocale.getName(), true, &status);
 
     // Read week data values from supplementalData week data
     UResourceBundle *rb = ures_openDirect(nullptr, "supplementalData", &status);
     ures_getByKey(rb, "weekData", rb, &status);
-    UResourceBundle *weekData = ures_getByKey(rb, region, nullptr, &status);
+    UResourceBundle *weekData = ures_getByKey(rb, region.data(), nullptr, &status);
     if (status == U_MISSING_RESOURCE_ERROR && rb != nullptr) {
         status = U_ZERO_ERROR;
         weekData = ures_getByKey(rb, "001", nullptr, &status);
