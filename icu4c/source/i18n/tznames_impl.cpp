@@ -34,6 +34,7 @@
 #include "ureslocs.h"
 #include "zonemeta.h"
 #include "ucln_in.h"
+#include "uinvchar.h"
 #include "uvector.h"
 #include "olsontz.h"
 
@@ -2163,7 +2164,7 @@ TZDBTimeZoneNames::TZDBTimeZoneNames(const Locale& locale)
         CharString loc;
         {
             CharStringByteSink sink(&loc);
-            ulocimp_addLikelySubtags(fLocale.getName(), sink, &status);
+            ulocimp_addLikelySubtags(fLocale.getName(), sink, status);
         }
         ulocimp_getSubtags(loc.data(), nullptr, nullptr, &fRegion, nullptr, nullptr, status);
         if (U_SUCCESS(status)) {
@@ -2280,6 +2281,10 @@ TZDBTimeZoneNames::getMetaZoneNames(const UnicodeString& mzID, UErrorCode& statu
         return nullptr;
     }
     mzIDKey[mzID.length()] = 0;
+    if (!uprv_isInvariantUString(mzIDKey, mzID.length())) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return nullptr;
+    }
 
     static UMutex gTZDBNamesMapLock;
     umtx_lock(&gTZDBNamesMapLock);
