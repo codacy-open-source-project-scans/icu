@@ -63,7 +63,6 @@
 #include "sharedcalendar.h"
 #include "unifiedcache.h"
 #include "ulocimp.h"
-#include "bytesinkutil.h"
 #include "charstr.h"
 
 #if !UCONFIG_NO_SERVICE
@@ -259,20 +258,12 @@ static ECalType getCalendarTypeForLocale(const char *locid) {
     // e.g ja_JP_TRADITIONAL -> ja_JP@calendar=japanese
     // NOTE: Since ICU-20187, ja_JP_TRADITIONAL no longer canonicalizes, and
     // the Gregorian calendar is returned instead.
-    CharString canonicalName;
-    {
-        CharStringByteSink sink(&canonicalName);
-        ulocimp_canonicalize(locid, sink, status);
-    }
+    CharString canonicalName = ulocimp_canonicalize(locid, status);
     if (U_FAILURE(status)) {
         return CALTYPE_GREGORIAN;
     }
 
-    CharString calTypeBuf;
-    {
-        CharStringByteSink sink(&calTypeBuf);
-        ulocimp_getKeywordValue(canonicalName.data(), "calendar", sink, status);
-    }
+    CharString calTypeBuf = ulocimp_getKeywordValue(canonicalName.data(), "calendar", status);
     if (U_SUCCESS(status)) {
         calType = getCalendarType(calTypeBuf.data());
         if (calType != CALTYPE_UNKNOWN) {
@@ -2084,7 +2075,12 @@ void Calendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& statu
             return;
         }
     case UCAL_JULIAN_DAY:
-        set(field, internalGet(field) + amount);
+        if (uprv_add32_overflow(
+            amount, internalGet(field), &amount)) {
+            status = U_ILLEGAL_ARGUMENT_ERROR;
+            return;
+        }
+        set(field, amount);
         return;
     default:
         // Other fields cannot be rolled by this method
@@ -3279,7 +3275,9 @@ double Calendar::computeMillisInDay() {
             // Don't normalize here; let overflow bump into the next period.
             // This is consistent with how we handle other fields.
             millisInDay += internalGet(UCAL_HOUR);
-            millisInDay += 12 * internalGet(UCAL_AM_PM); // Default works for unset AM_PM
+            // Treat even number as AM and odd nubmber as PM to align with the
+            // logic in roll()
+            millisInDay += (internalGet(UCAL_AM_PM) % 2 == 0) ? 0 : 12;
         }
     }
 

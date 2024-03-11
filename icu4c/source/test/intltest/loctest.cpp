@@ -5650,7 +5650,7 @@ bool isKnownSourceForCLDR17099(const std::string& s) {
     if (s.compare("qaa-Cyrl-CH") == 0) {
         return true;
     }
-    
+
 	return false;
 }
 
@@ -5665,7 +5665,7 @@ testLikelySubtagsLineFn(void *context,
     LocaleTest* THIS = (LocaleTest*)context;
     std::string source(trim(std::string(fields[0][0], fields[0][1]-fields[0][0])));
     if (isKnownSourceForCLDR17099(source) && THIS->logKnownIssue("CLDR-17099", "likelySubtags.txt wrong for qaa-Cyrl-CH")) {
-        return;
+      return;
     }
     std::string addLikely(trim(std::string(fields[1][0], fields[1][1]-fields[1][0])));
     std::string removeFavorScript(trim(std::string(fields[2][0], fields[2][1]-fields[2][0])));

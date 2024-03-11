@@ -16,7 +16,6 @@
 #include "unicode/putil.h"
 #include "unicode/uenum.h"
 #include "unicode/uloc.h"
-#include "ustr_imp.h"
 #include "bytesinkutil.h"
 #include "charstr.h"
 #include "cmemory.h"
@@ -1307,11 +1306,7 @@ _appendKeywordsToLanguageTag(const char* localeID, icu::ByteSink& sink, bool str
                 break;
             }
 
-            icu::CharString buf;
-            {
-                icu::CharStringByteSink sink(&buf);
-                ulocimp_getKeywordValue(localeID, key, sink, tmpStatus);
-            }
+            icu::CharString buf = ulocimp_getKeywordValue(localeID, key, tmpStatus);
             len = buf.length();
 
             if (U_FAILURE(tmpStatus)) {
@@ -2570,27 +2565,24 @@ uloc_toLanguageTag(const char* localeID,
                    int32_t langtagCapacity,
                    UBool strict,
                    UErrorCode* status) {
-    if (U_FAILURE(*status)) {
-        return 0;
-    }
-
-    icu::CheckedArrayByteSink sink(langtag, langtagCapacity);
-    ulocimp_toLanguageTag(localeID, sink, strict, *status);
-    if (U_FAILURE(*status)) {
-        return 0;
-    }
-
-    int32_t reslen = sink.NumberOfBytesAppended();
-
-    if (sink.Overflowed()) {
-        *status = U_BUFFER_OVERFLOW_ERROR;
-    } else {
-        u_terminateChars(langtag, langtagCapacity, reslen, status);
-    }
-
-    return reslen;
+    return icu::ByteSinkUtil::viaByteSinkToTerminatedChars(
+        langtag, langtagCapacity,
+        [&](icu::ByteSink& sink, UErrorCode& status) {
+            ulocimp_toLanguageTag(localeID, sink, strict, status);
+        },
+        *status);
 }
 
+U_EXPORT icu::CharString
+ulocimp_toLanguageTag(const char* localeID,
+                      bool strict,
+                      UErrorCode& status) {
+    return icu::ByteSinkUtil::viaByteSinkToCharString(
+        [&](icu::ByteSink& sink, UErrorCode& status) {
+            ulocimp_toLanguageTag(localeID, sink, strict, status);
+        },
+        status);
+}
 
 U_EXPORT void
 ulocimp_toLanguageTag(const char* localeID,
@@ -2599,16 +2591,12 @@ ulocimp_toLanguageTag(const char* localeID,
                       UErrorCode& status) {
     if (U_FAILURE(status)) { return; }
 
-    icu::CharString canonical;
     UErrorCode tmpStatus = U_ZERO_ERROR;
     bool hadPosix = false;
     const char* pKeywordStart;
 
     /* Note: uloc_canonicalize returns "en_US_POSIX" for input locale ID "".  See #6835 */
-    {
-        icu::CharStringByteSink canonicalSink(&canonical);
-        ulocimp_canonicalize(localeID, canonicalSink, tmpStatus);
-    }
+    icu::CharString canonical = ulocimp_canonicalize(localeID, tmpStatus);
     if (U_FAILURE(tmpStatus)) {
         status = tmpStatus;
         return;
@@ -2629,11 +2617,7 @@ ulocimp_toLanguageTag(const char* localeID,
 
                 key = uenum_next(kwdEnum.getAlias(), &len, &tmpStatus);
                 if (len == 1 && *key == PRIVATEUSE) {
-                    icu::CharString buf;
-                    {
-                        icu::CharStringByteSink sink(&buf);
-                        ulocimp_getKeywordValue(localeID, key, sink, tmpStatus);
-                    }
+                    icu::CharString buf = ulocimp_getKeywordValue(localeID, key, tmpStatus);
                     if (U_SUCCESS(tmpStatus)) {
                         if (ultag_isPrivateuseValueSubtags(buf.data(), buf.length())) {
                             /* return private use only tag */
@@ -2672,27 +2656,25 @@ uloc_forLanguageTag(const char* langtag,
                     int32_t localeIDCapacity,
                     int32_t* parsedLength,
                     UErrorCode* status) {
-    if (U_FAILURE(*status)) {
-        return 0;
-    }
-
-    icu::CheckedArrayByteSink sink(localeID, localeIDCapacity);
-    ulocimp_forLanguageTag(langtag, -1, sink, parsedLength, *status);
-    if (U_FAILURE(*status)) {
-        return 0;
-    }
-
-    int32_t reslen = sink.NumberOfBytesAppended();
-
-    if (sink.Overflowed()) {
-        *status = U_BUFFER_OVERFLOW_ERROR;
-    } else {
-        u_terminateChars(localeID, localeIDCapacity, reslen, status);
-    }
-
-    return reslen;
+    return icu::ByteSinkUtil::viaByteSinkToTerminatedChars(
+        localeID, localeIDCapacity,
+        [&](icu::ByteSink& sink, UErrorCode& status) {
+            ulocimp_forLanguageTag(langtag, -1, sink, parsedLength, status);
+        },
+        *status);
 }
 
+U_EXPORT icu::CharString
+ulocimp_forLanguageTag(const char* langtag,
+                       int32_t tagLen,
+                       int32_t* parsedLength,
+                       UErrorCode& status) {
+    return icu::ByteSinkUtil::viaByteSinkToCharString(
+        [&](icu::ByteSink& sink, UErrorCode& status) {
+            ulocimp_forLanguageTag(langtag, tagLen, sink, parsedLength, status);
+        },
+        status);
+}
 
 U_EXPORT void
 ulocimp_forLanguageTag(const char* langtag,

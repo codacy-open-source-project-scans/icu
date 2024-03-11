@@ -35,7 +35,6 @@
 #include "cstring.h"
 #include "loclikelysubtags.h"
 #include "ulocimp.h"
-#include "ustr_imp.h"
 
 namespace {
 
@@ -274,28 +273,22 @@ uloc_addLikelySubtags(const char* localeID,
                       char* maximizedLocaleID,
                       int32_t maximizedLocaleIDCapacity,
                       UErrorCode* status) {
-    if (U_FAILURE(*status)) {
-        return 0;
-    }
+    return icu::ByteSinkUtil::viaByteSinkToTerminatedChars(
+        maximizedLocaleID, maximizedLocaleIDCapacity,
+        [&](icu::ByteSink& sink, UErrorCode& status) {
+            ulocimp_addLikelySubtags(localeID, sink, status);
+        },
+        *status);
+}
 
-    icu::CheckedArrayByteSink sink(
-            maximizedLocaleID, maximizedLocaleIDCapacity);
-
-    ulocimp_addLikelySubtags(localeID, sink, *status);
-    if (U_FAILURE(*status)) {
-        return 0;
-    }
-
-    int32_t reslen = sink.NumberOfBytesAppended();
-
-    if (sink.Overflowed()) {
-        *status = U_BUFFER_OVERFLOW_ERROR;
-    } else {
-        u_terminateChars(
-                maximizedLocaleID, maximizedLocaleIDCapacity, reslen, status);
-    }
-
-    return reslen;
+U_EXPORT icu::CharString
+ulocimp_addLikelySubtags(const char* localeID,
+                         UErrorCode& status) {
+    return icu::ByteSinkUtil::viaByteSinkToCharString(
+        [&](icu::ByteSink& sink, UErrorCode& status) {
+            ulocimp_addLikelySubtags(localeID, sink, status);
+        },
+        status);
 }
 
 U_EXPORT void
@@ -303,11 +296,7 @@ ulocimp_addLikelySubtags(const char* localeID,
                          icu::ByteSink& sink,
                          UErrorCode& status) {
     if (U_FAILURE(status)) { return; }
-    icu::CharString localeBuffer;
-    {
-        icu::CharStringByteSink localeSink(&localeBuffer);
-        ulocimp_canonicalize(localeID, localeSink, status);
-    }
+    icu::CharString localeBuffer = ulocimp_canonicalize(localeID, status);
     _uloc_addLikelySubtags(localeBuffer.data(), sink, status);
 }
 
@@ -316,28 +305,23 @@ uloc_minimizeSubtags(const char* localeID,
                      char* minimizedLocaleID,
                      int32_t minimizedLocaleIDCapacity,
                      UErrorCode* status) {
-    if (U_FAILURE(*status)) {
-        return 0;
-    }
+    return icu::ByteSinkUtil::viaByteSinkToTerminatedChars(
+        minimizedLocaleID, minimizedLocaleIDCapacity,
+        [&](icu::ByteSink& sink, UErrorCode& status) {
+            ulocimp_minimizeSubtags(localeID, sink, false, status);
+        },
+        *status);
+}
 
-    icu::CheckedArrayByteSink sink(
-            minimizedLocaleID, minimizedLocaleIDCapacity);
-
-    ulocimp_minimizeSubtags(localeID, sink, false, *status);
-    if (U_FAILURE(*status)) {
-        return 0;
-    }
-
-    int32_t reslen = sink.NumberOfBytesAppended();
-
-    if (sink.Overflowed()) {
-        *status = U_BUFFER_OVERFLOW_ERROR;
-    } else {
-        u_terminateChars(
-                minimizedLocaleID, minimizedLocaleIDCapacity, reslen, status);
-    }
-
-    return reslen;
+U_EXPORT icu::CharString
+ulocimp_minimizeSubtags(const char* localeID,
+                        bool favorScript,
+                        UErrorCode& status) {
+    return icu::ByteSinkUtil::viaByteSinkToCharString(
+        [&](icu::ByteSink& sink, UErrorCode& status) {
+            ulocimp_minimizeSubtags(localeID, sink, favorScript, status);
+        },
+        status);
 }
 
 U_EXPORT void
@@ -346,11 +330,7 @@ ulocimp_minimizeSubtags(const char* localeID,
                         bool favorScript,
                         UErrorCode& status) {
     if (U_FAILURE(status)) { return; }
-    icu::CharString localeBuffer;
-    {
-        icu::CharStringByteSink localeSink(&localeBuffer);
-        ulocimp_canonicalize(localeID, localeSink, status);
-    }
+    icu::CharString localeBuffer = ulocimp_canonicalize(localeID, status);
     _uloc_minimizeSubtags(localeBuffer.data(), sink, favorScript, status);
 }
 
@@ -381,11 +361,7 @@ uloc_isRightToLeft(const char *locale) {
         }
         // Otherwise, find the likely script.
         errorCode = U_ZERO_ERROR;
-        icu::CharString likely;
-        {
-            icu::CharStringByteSink sink(&likely);
-            ulocimp_addLikelySubtags(locale, sink, errorCode);
-        }
+        icu::CharString likely = ulocimp_addLikelySubtags(locale, errorCode);
         if (U_FAILURE(errorCode)) {
             return false;
         }
@@ -413,11 +389,7 @@ GetRegionFromKey(const char* localeID, const char* key, UErrorCode& status) {
     icu::CharString result;
 
     // First check for keyword value
-    icu::CharString kw;
-    {
-        icu::CharStringByteSink sink(&kw);
-        ulocimp_getKeywordValue(localeID, key, sink, status);
-    }
+    icu::CharString kw = ulocimp_getKeywordValue(localeID, key, status);
     int32_t len = kw.length();
     if (U_SUCCESS(status) && len >= 3 && len <= 7) {
         // chop off the subdivision code (which will generally be "zzzz" anyway)
@@ -450,11 +422,7 @@ ulocimp_getRegionForSupplementalData(const char *localeID, bool inferRegion,
             if (U_SUCCESS(status) && rgBuf.isEmpty()) {
                 // no unicode_region_subtag but inferRegion true, try likely subtags
                 UErrorCode rgStatus = U_ZERO_ERROR;
-                icu::CharString locBuf;
-                {
-                    icu::CharStringByteSink sink(&locBuf);
-                    ulocimp_addLikelySubtags(localeID, sink, rgStatus);
-                }
+                icu::CharString locBuf = ulocimp_addLikelySubtags(localeID, rgStatus);
                 if (U_SUCCESS(rgStatus)) {
                     rgBuf = ulocimp_getRegion(locBuf.data(), status);
                 }

@@ -195,6 +195,8 @@ void CalendarTest::runIndexedTest( int32_t index, UBool exec, const char* &name,
     TESTCASE_AUTO(Test22633IndianOverflow);
     TESTCASE_AUTO(Test22633IslamicUmalquraOverflow);
     TESTCASE_AUTO(Test22633PersianOverflow);
+    TESTCASE_AUTO(Test22633HebrewOverflow);
+    TESTCASE_AUTO(Test22633AMPMOverflow);
 
     TESTCASE_AUTO(TestAddOverflow);
 
@@ -5648,6 +5650,15 @@ void CalendarTest::Test22633ChineseOverflow() {
     cal->set(UCAL_EXTENDED_YEAR, -1594662558);
     cal->get(UCAL_YEAR, status);
     assertTrue("Should return success", U_SUCCESS(status));
+
+    cal->setTime(17000065021099877464213620139773683829419175940649608600213244013003611130029599692535053209683880603725167923910423116397083334648012657787978113960494455603744210944.000000, status);
+    cal->add(UCAL_YEAR, 1935762034, status);
+    assertTrue("Should return falure", U_FAILURE(status));
+
+    status = U_ZERO_ERROR;
+    cal->set(UCAL_ERA, 1651667877);
+    cal->add(UCAL_YEAR, 1935762034, status);
+    assertTrue("Should return falure", U_FAILURE(status));
 }
 void CalendarTest::Test22633IndianOverflow() {
     UErrorCode status = U_ZERO_ERROR;
@@ -5676,6 +5687,36 @@ void CalendarTest::Test22633PersianOverflow() {
         -874417153152678003697180890506448687181167523704194267774844295805672585701302166100950793070884718009504322601688549650298776623158701367393457997817732662883592665106020013730689242515513560464852918376875667091108609655859551000798163265126400.000000,
         UCAL_YEAR, status);
     assertFalse("Should not return success", U_SUCCESS(status));
+}
+
+void CalendarTest::Test22633HebrewOverflow() {
+    UErrorCode status = U_ZERO_ERROR;
+    LocalPointer<Calendar> cal(Calendar::createInstance(Locale("en@calendar=hebrew"), status), status);
+    U_ASSERT(U_SUCCESS(status));
+    cal->clear();
+    cal->roll(UCAL_JULIAN_DAY, -335544321, status);
+    assertTrue("Should return success", U_SUCCESS(status));
+    cal->roll(UCAL_JULIAN_DAY, -1812424430, status);
+    assertEquals("Should return U_ILLEGAL_ARGUMENT_ERROR",
+                 U_ILLEGAL_ARGUMENT_ERROR, status);
+}
+
+void CalendarTest::Test22633AMPMOverflow() {
+    UErrorCode status = U_ZERO_ERROR;
+    LocalPointer<Calendar> cal(Calendar::createInstance(Locale("en"), status), status);
+    U_ASSERT(U_SUCCESS(status));
+    cal->setTimeZone(*TimeZone::getGMT());
+    cal->clear();
+    // Test to set a value > limit should not cause internal overflow.
+    cal->set(UCAL_AM_PM, 370633137);
+    assertEquals("set large odd value for UCAL_AM_PM should be treated as PM",
+                 12.0 * 60.0 * 60.0 *1000.0, cal->getTime(status));
+    assertTrue("Should return success", U_SUCCESS(status));
+
+    cal->set(UCAL_AM_PM, 370633138);
+    assertEquals("set large even value for UCAL_AM_PM should be treated as AM",
+                 0.0, cal->getTime(status));
+    assertTrue("Should return success", U_SUCCESS(status));
 }
 
 void CalendarTest::TestChineseCalendarComputeMonthStart() {  // ICU-22639
