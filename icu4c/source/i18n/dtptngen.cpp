@@ -463,15 +463,12 @@ DateTimePatternGenerator::operator!=(const DateTimePatternGenerator& other) cons
 }
 
 DateTimePatternGenerator::~DateTimePatternGenerator() {
-    if (fAvailableFormatKeyHash!=nullptr) {
-        delete fAvailableFormatKeyHash;
-    }
-
-    if (fp != nullptr) delete fp;
-    if (dtMatcher != nullptr) delete dtMatcher;
-    if (distanceInfo != nullptr) delete distanceInfo;
-    if (patternMap != nullptr) delete patternMap;
-    if (skipMatcher != nullptr) delete skipMatcher;
+    delete fAvailableFormatKeyHash;
+    delete fp;
+    delete dtMatcher;
+    delete distanceInfo;
+    delete patternMap;
+    delete skipMatcher;
 }
 
 namespace {
@@ -510,6 +507,11 @@ enum AllowedHourFormat{
 void
 DateTimePatternGenerator::initData(const Locale& locale, UErrorCode &status, UBool skipStdPatterns) {
     //const char *baseLangName = locale.getBaseName(); // unused
+    if (U_FAILURE(status)) { return; }
+    if (locale.isBogus()) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
 
     skipMatcher = nullptr;
     fAvailableFormatKeyHash=nullptr;

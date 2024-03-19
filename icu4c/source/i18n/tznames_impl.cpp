@@ -73,7 +73,9 @@ enum UTimeZoneNameTypeIndex {
     UTZNM_INDEX_SHORT_DAYLIGHT,
     UTZNM_INDEX_COUNT
 };
-static const char16_t* const EMPTY_NAMES[UTZNM_INDEX_COUNT] = {0,0,0,0,0,0,0};
+static const char16_t* const EMPTY_NAMES[UTZNM_INDEX_COUNT] = {
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
+};
 
 U_CDECL_BEGIN
 static UBool U_CALLCONV tzdbTimeZoneNames_cleanup() {
@@ -945,9 +947,7 @@ ZNameSearchHandler::ZNameSearchHandler(uint32_t types)
 }
 
 ZNameSearchHandler::~ZNameSearchHandler() {
-    if (fResults != nullptr) {
-        delete fResults;
-    }
+    delete fResults;
 }
 
 UBool
@@ -1697,9 +1697,7 @@ void TimeZoneNamesImpl::internalLoadAllDisplayNames(UErrorCode& status) {
                 }
             }
         }
-        if (tzIDs != nullptr) {
-            delete tzIDs;
-        }
+        delete tzIDs;
     }
 }
 
@@ -1931,9 +1929,7 @@ TZDBNameSearchHandler::TZDBNameSearchHandler(uint32_t types, StringPiece region)
 }
 
 TZDBNameSearchHandler::~TZDBNameSearchHandler() {
-    if (fResults != nullptr) {
-        delete fResults;
-    }
+    delete fResults;
 }
 
 UBool
@@ -2088,7 +2084,7 @@ static void U_CALLCONV prepareFind(UErrorCode &status) {
     const UnicodeString *mzID;
     StringEnumeration *mzIDs = TimeZoneNamesImpl::_getAvailableMetaZoneIDs(status);
     if (U_SUCCESS(status)) {
-        while ((mzID = mzIDs->snext(status)) != 0 && U_SUCCESS(status)) {
+        while ((mzID = mzIDs->snext(status)) != nullptr && U_SUCCESS(status)) {
             const TZDBNames *names = TZDBTimeZoneNames::getMetaZoneNames(*mzID, status);
             if (U_FAILURE(status)) {
                 break;

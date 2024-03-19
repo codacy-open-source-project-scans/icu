@@ -197,6 +197,12 @@ void CalendarTest::runIndexedTest( int32_t index, UBool exec, const char* &name,
     TESTCASE_AUTO(Test22633PersianOverflow);
     TESTCASE_AUTO(Test22633HebrewOverflow);
     TESTCASE_AUTO(Test22633AMPMOverflow);
+    TESTCASE_AUTO(Test22633SetGetTimeOverflow);
+    TESTCASE_AUTO(Test22633Set2FieldsGetTimeOverflow);
+    TESTCASE_AUTO(Test22633SetAddGetTimeOverflow);
+    TESTCASE_AUTO(Test22633SetRollGetTimeOverflow);
+    TESTCASE_AUTO(Test22633AddTwiceGetTimeOverflow);
+    TESTCASE_AUTO(Test22633RollTwiceGetTimeOverflow);
 
     TESTCASE_AUTO(TestAddOverflow);
 
@@ -398,7 +404,7 @@ CalendarTest::TestGenericAPI()
 
     int32_t count;
     const Locale* loc = Calendar::getAvailableLocales(count);
-    if (count < 1 || loc == 0)
+    if (count < 1 || loc == nullptr)
     {
         dataerrln("FAIL: getAvailableLocales failed");
     }
@@ -1261,7 +1267,7 @@ CalendarTest::TestFields060()
     int32_t year = 1997;
     int32_t month = UCAL_OCTOBER;
     int32_t dDate = 22;
-    GregorianCalendar *calendar = 0;
+    GregorianCalendar* calendar = nullptr;
     calendar = new GregorianCalendar(year, month, dDate, status);
     if (failure(status, "new GregorianCalendar", true)) return;
     for (int32_t i = 0; i < EXPECTED_FIELDS_length;) {
@@ -3622,12 +3628,12 @@ void CalendarTest::TestWeekData() {
         "en_GB",    "und_GB",
         "ar_EG",    "en_EG",
         "ar_SA",    "fr_SA",
-        0
+        nullptr
     };
 
     UErrorCode status;
 
-    for (int32_t i = 0; LOCALE_PAIRS[i] != 0; i += 2) {
+    for (int32_t i = 0; LOCALE_PAIRS[i] != nullptr; i += 2) {
         status = U_ZERO_ERROR;
         LocalPointer<Calendar>  cal1(Calendar::createInstance(LOCALE_PAIRS[i], status));
         LocalPointer<Calendar>  cal2(Calendar::createInstance(LOCALE_PAIRS[i + 1], status));
@@ -5719,6 +5725,123 @@ void CalendarTest::Test22633AMPMOverflow() {
     assertTrue("Should return success", U_SUCCESS(status));
 }
 
+void CalendarTest::RunTestOnCalendars(void(TestFunc)(Calendar*, UCalendarDateFields)) {
+    UErrorCode status = U_ZERO_ERROR;
+    Locale locale = Locale::getEnglish();
+    LocalPointer<StringEnumeration> values(
+        Calendar::getKeywordValuesForLocale("calendar", locale, false, status),
+        status);
+    assertTrue("Should return success", U_SUCCESS(status));
+    if (U_FAILURE(status)) {
+      return;
+    }
+    const char* value = nullptr;
+    while ((value = values->next(nullptr, status)) != nullptr && U_SUCCESS(status)) {
+        locale.setKeywordValue("calendar", value, status);
+        assertTrue("Should return success", U_SUCCESS(status));
+
+        LocalPointer<Calendar> cal(Calendar::createInstance(*TimeZone::getGMT(), locale, status), status);
+        assertTrue("Should return success", U_SUCCESS(status));
+        for (int32_t i = 0; i < UCAL_FIELD_COUNT; i++) {
+            TestFunc(cal.getAlias(), static_cast<UCalendarDateFields>(i));
+        }
+    }
+}
+
+// This test is designed to work with undefined behavior sanitizer UBSAN to
+// ensure we do not have math operation overflow int32_t.
+void CalendarTest::Test22633SetGetTimeOverflow() {
+    RunTestOnCalendars([](Calendar* cal, UCalendarDateFields field) {
+        auto f = [](Calendar* cal, UCalendarDateFields field, int32_t value) {
+            UErrorCode status = U_ZERO_ERROR;
+            cal->clear();
+            cal->set(field, value);
+            cal->getTime(status);
+        };
+        f(cal, field, INT32_MAX);
+        f(cal, field, INT32_MIN);
+    });
+}
+
+void CalendarTest::Test22633Set2FieldsGetTimeOverflow() {
+    RunTestOnCalendars([](Calendar* cal, UCalendarDateFields field) {
+        auto f = [](Calendar* cal, UCalendarDateFields field, int32_t value) {
+            for (int32_t j = 0; j < UCAL_FIELD_COUNT; j++) {
+                UCalendarDateFields field2 = static_cast<UCalendarDateFields>(j);
+                UErrorCode status = U_ZERO_ERROR;
+                cal->clear();
+                cal->set(field, value);
+                cal->set(field2, value);
+                cal->getTime(status);
+            }
+        };
+        f(cal, field, INT32_MAX);
+        f(cal, field, INT32_MIN);
+    });
+}
+
+void CalendarTest::Test22633SetAddGetTimeOverflow() {
+    RunTestOnCalendars([](Calendar* cal, UCalendarDateFields field) {
+        auto f = [](Calendar* cal, UCalendarDateFields field, int32_t value) {
+            UErrorCode status = U_ZERO_ERROR;
+            cal->clear();
+            cal->set(field, value);
+            cal->add(field, value, status);
+            status = U_ZERO_ERROR;
+            cal->getTime(status);
+        };
+        f(cal, field, INT32_MAX);
+        f(cal, field, INT32_MIN);
+    });
+}
+
+void CalendarTest::Test22633AddTwiceGetTimeOverflow() {
+    RunTestOnCalendars([](Calendar* cal, UCalendarDateFields field) {
+        auto f = [](Calendar* cal, UCalendarDateFields field, int32_t value) {
+            UErrorCode status = U_ZERO_ERROR;
+            cal->clear();
+            cal->add(field, value, status);
+            status = U_ZERO_ERROR;
+            cal->add(field, value, status);
+            status = U_ZERO_ERROR;
+            cal->getTime(status);
+        };
+        f(cal, field, INT32_MAX);
+        f(cal, field, INT32_MIN);
+    });
+}
+
+void CalendarTest::Test22633SetRollGetTimeOverflow() {
+    RunTestOnCalendars([](Calendar* cal, UCalendarDateFields field) {
+        auto f = [](Calendar* cal, UCalendarDateFields field, int32_t value) {
+            UErrorCode status = U_ZERO_ERROR;
+            cal->clear();
+            cal->set(field, value);
+            cal->roll(field, value, status);
+            status = U_ZERO_ERROR;
+            cal->getTime(status);
+        };
+        f(cal, field, INT32_MAX);
+        f(cal, field, INT32_MIN);
+    });
+}
+
+void CalendarTest::Test22633RollTwiceGetTimeOverflow() {
+    RunTestOnCalendars([](Calendar* cal, UCalendarDateFields field) {
+        auto f = [](Calendar* cal, UCalendarDateFields field, int32_t value) {
+            UErrorCode status = U_ZERO_ERROR;
+            cal->clear();
+            cal->roll(field, value, status);
+            status = U_ZERO_ERROR;
+            cal->roll(field, value, status);
+            status = U_ZERO_ERROR;
+            cal->getTime(status);
+        };
+        f(cal, field, INT32_MAX);
+        f(cal, field, INT32_MIN);
+    });
+}
+
 void CalendarTest::TestChineseCalendarComputeMonthStart() {  // ICU-22639
     UErrorCode status = U_ZERO_ERROR;
 
@@ -5740,7 +5863,7 @@ void CalendarTest::TestChineseCalendarComputeMonthStart() {  // ICU-22639
                 chinese.hasLeapMonthBetweenWinterSolstices);
 
     assertEquals("monthStart", monthStart,
-                 chinese.handleComputeMonthStart(eyear, 0, false));
+                 chinese.handleComputeMonthStart(eyear, 0, false, status));
 
     // Calling a const method must not haved changed the state of the object.
     assertFalse("hasLeapMonthBetweenWinterSolstices [#2]",

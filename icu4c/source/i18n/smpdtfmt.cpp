@@ -332,9 +332,7 @@ SimpleDateFormat::~SimpleDateFormat()
     if (fSharedNumberFormatters) {
         freeSharedNumberFormatters(fSharedNumberFormatters);
     }
-    if (fTimeZoneFormat) {
-        delete fTimeZoneFormat;
-    }
+    delete fTimeZoneFormat;
     delete fSimpleNumberFormatter;
 
 #if !UCONFIG_NO_BREAK_ITERATION
@@ -507,7 +505,7 @@ SimpleDateFormat::SimpleDateFormat(const Locale& locale,
         // This constructor doesn't fail; it uses last resort data
         fSymbols = new DateFormatSymbols(status);
         /* test for nullptr */
-        if (fSymbols == 0) {
+        if (fSymbols == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
@@ -709,7 +707,7 @@ void SimpleDateFormat::construct(EStyle timeStyle,
     fSymbols = DateFormatSymbols::createForLocale(locale, status);
     if (U_FAILURE(status)) return;
     /* test for nullptr */
-    if (fSymbols == 0) {
+    if (fSymbols == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -1114,9 +1112,7 @@ SimpleDateFormat::_format(Calendar& cal, UnicodeString& appendTo,
                   prevCh, handler, *workCal, status);
     }
 
-    if (calClone != nullptr) {
-        delete calClone;
-    }
+    delete calClone;
 
     return appendTo;
 }
@@ -2656,12 +2652,8 @@ ExitParse:
         cal.setTime(workCal->getTime(status), status);
     }
 
-    if (numericLeapMonthFormatter != nullptr) {
-        delete numericLeapMonthFormatter;
-    }
-    if (calClone != nullptr) {
-        delete calClone;
-    }
+    delete numericLeapMonthFormatter;
+    delete calClone;
 
     // If any Calendar calls failed, we pretend that we
     // couldn't parse the string, when in reality this isn't quite accurate--

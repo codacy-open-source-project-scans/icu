@@ -471,7 +471,7 @@ void unitsTestDataLineFn(void *context, char *fields[][2], int32_t fieldCount, U
         return;
     }
     UnicodeString uExpected = UnicodeString::fromUTF8(utf8Expected);
-    double expected = unum_parseDouble(nf, uExpected.getBuffer(), uExpected.length(), 0, status);
+    double expected = unum_parseDouble(nf, uExpected.getBuffer(), uExpected.length(), nullptr, status);
     unum_close(nf);
     if (status.errIfFailureAndReset("unum_parseDouble(\"%s\") failed", utf8Expected)) {
         return;
@@ -524,7 +524,10 @@ void unitsTestDataLineFn(void *context, char *fields[][2], int32_t fieldCount, U
     double inverted = converter.convertInverse(got);
     msg.clear();
     msg.append("Converting back to ", status).append(x, status).append(" from ", status).append(y, status);
-    unitsTest->assertEqualsNear(msg.data(), 1000, inverted, 0.0001);
+    if (strncmp(x.data(), "beaufort", 8)
+    		&& log_knownIssue("CLDR-17454", "unitTest.txt for beaufort doesn't scale correctly") ) {
+		unitsTest->assertEqualsNear(msg.data(), 1000, inverted, 0.0001);
+    }
 }
 
 /**
