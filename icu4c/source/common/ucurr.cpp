@@ -1364,7 +1364,6 @@ searchCurrencyName(const CurrencyNameStruct* currencyNames,
             break;
         }
     }
-    return;
 }
 
 //========================= currency name cache =====================
@@ -2203,7 +2202,7 @@ static void U_CALLCONV initIsoCodes(UErrorCode &status) {
 
 static void populateCurrSymbolsEquiv(icu::Hashtable *hash, UErrorCode &status) {
     if (U_FAILURE(status)) { return; }
-    for (auto& entry : unisets::kCurrencyEntries) {
+    for (const auto& entry : unisets::kCurrencyEntries) {
         UnicodeString exemplar(entry.exemplar);
         const UnicodeSet* set = unisets::get(entry.key);
         if (set == nullptr) { return; }

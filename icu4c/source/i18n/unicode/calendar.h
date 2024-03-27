@@ -1547,6 +1547,13 @@ protected:
      * @internal
      */
     inline int32_t internalGet(UCalendarDateFields field) const {return fFields[field];}
+
+    /**
+     * The year in this calendar is counting from 1 backward if the era is 0.
+     * @return The year in era 0 of this calendar is counting backward from 1.
+     * @internal
+     */
+    virtual bool isEra0CountingBackward() const { return false; }
 #endif  /* U_HIDE_INTERNAL_API */
 
     /**
@@ -2557,6 +2564,16 @@ Calendar::internalSet(UCalendarDateFields field, int32_t value)
     fIsSet[field]     = true; // Remove later
 }
 
+/**
+ * Macro for the class to declare it override
+ * haveDefaultCentury, defaultCenturyStart, and
+ * defaultCenturyStartYear functions in this class.
+ * @internal
+ */
+#define DECLARE_OVERRIDE_SYSTEM_DEFAULT_CENTURY \
+    virtual UBool haveDefaultCentury() const override; \
+    virtual UDate defaultCenturyStart() const override; \
+    virtual int32_t defaultCenturyStartYear() const override;
 
 #ifndef U_HIDE_INTERNAL_API
 inline int32_t  Calendar::weekNumber(int32_t dayOfPeriod, int32_t dayOfWeek)

@@ -211,28 +211,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
    * @param year  The hijri month, 0-based
    */
   virtual int64_t monthStart(int32_t year, int32_t month, UErrorCode& status) const;
-    
-  /**
-   * Find the day number on which a particular month of the true/lunar
-   * Islamic calendar starts.
-   *
-   * @param month The month in question, origin 0 from the Hijri epoch
-   *
-   * @return The day number on which the given month starts.
-   */
-  int32_t trueMonthStart(int32_t month) const;
 
- private:
-  /**
-   * Return the "age" of the moon at the given time; this is the difference
-   * in ecliptic latitude between the moon and the sun.  This method simply
-   * calls CalendarAstronomer.moonAge, converts to degrees, 
-   * and adjusts the resultto be in the range [-180, 180].
-   *
-   * @param time  The time at which the moon's age is desired,
-   *              in millis since 1/1/1970.
-   */
-  static double moonAge(UDate time, UErrorCode &status);
 
   //----------------------------------------------------------------------
   // Calendar framework
@@ -359,32 +338,8 @@ class U_I18N_API IslamicCalendar : public Calendar {
 
   // Default century.
  protected:
-  /**
-   * Returns true because the Islamic Calendar does have a default century
-   * @internal
-   */
-  virtual UBool haveDefaultCentury() const override;
 
-  /**
-   * Returns the date of the start of the default century
-   * @return start of century - in milliseconds since epoch, 1970
-   * @internal
-   */
-  virtual UDate defaultCenturyStart() const override;
-
-  /**
-   * Returns the year in which the default century begins
-   * @internal
-   */
-  virtual int32_t defaultCenturyStartYear() const override;
-
- private:
-  /**
-   * Initializes the 100-year window that dates with 2-digit years
-   * are considered to fall within so that its start date is 80 years
-   * before the current time.
-   */
-  static void U_CALLCONV initializeSystemDefaultCentury();
+  DECLARE_OVERRIDE_SYSTEM_DEFAULT_CENTURY
 };
 
 /*

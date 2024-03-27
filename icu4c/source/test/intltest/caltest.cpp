@@ -204,6 +204,8 @@ void CalendarTest::runIndexedTest( int32_t index, UBool exec, const char* &name,
     TESTCASE_AUTO(Test22633AddTwiceGetTimeOverflow);
     TESTCASE_AUTO(Test22633RollTwiceGetTimeOverflow);
 
+    TESTCASE_AUTO(Test22633HebrewLargeNegativeDay);
+
     TESTCASE_AUTO(TestAddOverflow);
 
 
@@ -1417,8 +1419,6 @@ CalendarTest::TestDOW_LOCALandYEAR_WOY()
     if (U_FAILURE(status)) { errln("Error in parse/calculate test for 1582"); return; }
     delete sdf;
     delete cal;
-
-    return;
 }
 
 /**
@@ -2095,8 +2095,6 @@ void CalendarTest::Test6703()
     cal = Calendar::createInstance(loc3, status);
     if (failure(status, "Calendar::createInstance")) return;
     delete cal;
-
-    return;
 }
 
 void CalendarTest::Test3785()
@@ -2142,8 +2140,6 @@ void CalendarTest::Test3785()
     if ( act2 != exp2 ) {
         errln("Unexpected result from date 2 format\n");
     }
-
-    return;
 }
 
 void CalendarTest::Test1624() {
@@ -2180,7 +2176,6 @@ void CalendarTest::Test1624() {
             }
         }
     }
-    return;
 }
 
 void CalendarTest::TestTimeStamp() {
@@ -5868,6 +5863,17 @@ void CalendarTest::TestChineseCalendarComputeMonthStart() {  // ICU-22639
     // Calling a const method must not haved changed the state of the object.
     assertFalse("hasLeapMonthBetweenWinterSolstices [#2]",
                 chinese.hasLeapMonthBetweenWinterSolstices);
+}
+
+void CalendarTest::Test22633HebrewLargeNegativeDay() {
+    UErrorCode status = U_ZERO_ERROR;
+    LocalPointer<Calendar> calendar(
+        Calendar::createInstance(Locale("en-u-ca-hebrew"), status),
+        status);
+    calendar->clear();
+    calendar->set(UCAL_DAY_OF_YEAR, -2147483648);
+    calendar->get(UCAL_HOUR, status);
+    assertEquals("status return without hang", status, U_ILLEGAL_ARGUMENT_ERROR);
 }
 
 void CalendarTest::TestAddOverflow() {

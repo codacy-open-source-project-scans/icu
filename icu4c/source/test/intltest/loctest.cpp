@@ -1685,7 +1685,7 @@ void LocaleTest::Test20639_DeprecatesISO3Language() {
         {"ro", "ron"},
         {"mo", "mol"},
     };
-    for (auto& cas : cases) {
+    for (const auto& cas : cases) {
         Locale loc(cas.localeName);
         const char* actual = loc.getISO3Language();
         assertEquals(cas.localeName, cas.expectedISO3Language, actual);
@@ -4912,9 +4912,9 @@ static Locale _canonicalize(int32_t selector, /* 0==createFromName, 1==createCan
     case 1:
         return Locale::createCanonical(localeID);
     case 2:
-        return Locale(localeID);
+        return {localeID};
     default:
-        return Locale("");
+        return {""};
     }
 }
 
@@ -4937,6 +4937,18 @@ void LocaleTest::TestCanonicalization()
         { "no@ny", "no@ny", "no__NY" /* not: "nn" [alan ICU3.0] */ }, /* POSIX ID */
         { "no-no.utf32@B", "no_NO.utf32@B", "no_NO_B" }, /* POSIX ID */
         { "qz-qz@Euro", "qz_QZ@Euro", "qz_QZ_EURO" }, /* qz-qz uses private use iso codes */
+
+        // A very long charset name in IANA charset
+        { "ja_JP.Extended_UNIX_Code_Packed_Format_for_Japanese@B",
+          "ja_JP.Extended_UNIX_Code_Packed_Format_for_Japanese@B", "ja_JP_B" }, /* POSIX ID */
+        // A fake long charset name below the limitation
+        { "ja_JP.1234567890123456789012345678901234567890123456789012345678901234@B",
+          "ja_JP.1234567890123456789012345678901234567890123456789012345678901234@B",
+          "ja_JP_B" }, /* POSIX ID */
+        // A fake long charset name one char above the limitation
+        { "ja_JP.12345678901234567890123456789012345678901234567890123456789012345@B",
+          "BOGUS",
+          "ja_JP_B" }, /* POSIX ID */
         // NOTE: uloc_getName() works on en-BOONT, but Locale() parser considers it BOGUS
         // TODO: unify this behavior
         { "en-BOONT", "en__BOONT", "en__BOONT" }, /* registered name */
@@ -5711,7 +5723,7 @@ public:
 };
 
 bool isKnownSourceForCLDR17099(const std::string& s) {
-    if (s.compare("qaa-Cyrl-CH") == 0) {
+    if (s == "qaa-Cyrl-CH") {
         return true;
     }
 

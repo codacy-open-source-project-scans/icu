@@ -180,7 +180,7 @@ void addFactorElement(Factor &factor, StringPiece elementStr, Signum signum, UEr
 Factor extractFactorConversions(StringPiece stringFactor, UErrorCode &status) {
     Factor result;
     Signum signum = Signum::POSITIVE;
-    auto factorData = stringFactor.data();
+    const auto* factorData = stringFactor.data();
     for (int32_t i = 0, start = 0, n = stringFactor.length(); i < n; i++) {
         if (factorData[i] == '*' || factorData[i] == '/') {
             StringPiece factorElement = stringFactor.substr(start, i - start);
@@ -202,11 +202,11 @@ Factor extractFactorConversions(StringPiece stringFactor, UErrorCode &status) {
 
 // Load factor for a single source
 Factor loadSingleFactor(StringPiece source, const ConversionRates &ratesInfo, UErrorCode &status) {
-    const auto conversionUnit = ratesInfo.extractConversionInfo(source, status);
-    if (U_FAILURE(status)) return Factor();
+    const auto* const conversionUnit = ratesInfo.extractConversionInfo(source, status);
+    if (U_FAILURE(status)) return {};
     if (conversionUnit == nullptr) {
         status = U_INTERNAL_PROGRAM_ERROR;
-        return Factor();
+        return {};
     }
 
     Factor result = extractFactorConversions(conversionUnit->factor.toStringPiece(), status);
@@ -277,16 +277,17 @@ UBool checkSimpleUnit(const MeasureUnitImpl &unit, UErrorCode &status) {
 CharString getSpecialMappingName(const MeasureUnitImpl &simpleUnit, const ConversionRates &ratesInfo,
                           UErrorCode &status) {
     if (!checkSimpleUnit(simpleUnit, status)) {
-        return CharString();
+        return {};
     }
     SingleUnitImpl singleUnit = *simpleUnit.singleUnits[0];
-    const auto conversionUnit = ratesInfo.extractConversionInfo(singleUnit.getSimpleUnitID(), status);
+    const auto* const conversionUnit =
+        ratesInfo.extractConversionInfo(singleUnit.getSimpleUnitID(), status);
     if (U_FAILURE(status)) {
-        return CharString();
+        return {};
     }
     if (conversionUnit == nullptr) {
         status = U_INTERNAL_PROGRAM_ERROR;
-        return CharString();
+        return {};
     }
     CharString result;
     result.copyFrom(conversionUnit->specialMappingName, status);
@@ -477,7 +478,7 @@ MeasureUnitImpl U_I18N_API extractCompoundBaseUnit(const MeasureUnitImpl &source
         const auto &singleUnit = *singleUnits[i];
         // Extract `ConversionRateInfo` using the absolute unit. For example: in case of `square-meter`,
         // we will use `meter`
-        const auto rateInfo =
+        const auto* const rateInfo =
             conversionRates.extractConversionInfo(singleUnit.getSimpleUnitID(), status);
         if (U_FAILURE(status)) {
             return result;

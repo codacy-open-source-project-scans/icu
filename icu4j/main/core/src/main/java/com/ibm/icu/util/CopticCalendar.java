@@ -249,6 +249,17 @@ public final class CopticCalendar extends CECalendar
      */
     @Override
     @Deprecated
+    protected boolean isEra0CountingBackward() {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     * @internal
+     * @deprecated This API is ICU internal only.
+     */
+    @Override
+    @Deprecated
     protected int handleGetExtendedYear() {
         int eyear;
         if (newerField(EXTENDED_YEAR, YEAR) == EXTENDED_YEAR) {
