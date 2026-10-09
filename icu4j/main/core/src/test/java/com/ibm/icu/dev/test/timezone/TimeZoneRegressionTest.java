@@ -15,6 +15,7 @@
 package com.ibm.icu.dev.test.timezone;
 
 import com.ibm.icu.dev.test.CoreTestFmwk;
+import com.ibm.icu.impl.locale.XCldrStub;
 import com.ibm.icu.text.DateFormat;
 import com.ibm.icu.text.SimpleDateFormat;
 import com.ibm.icu.util.Calendar;
@@ -58,7 +59,7 @@ public class TimeZoneRegressionTest extends CoreTestFmwk {
     public void Test4073209() {
         TimeZone z1 = TimeZone.getTimeZone("PST");
         TimeZone z2 = TimeZone.getTimeZone("PST");
-        if (z1 == z2) errln("Fail: TimeZone should return clones");
+        assertNotSame("Fail: TimeZone should return clones", z1, z2);
     }
 
     @Test
@@ -1434,11 +1435,7 @@ public class TimeZoneRegressionTest extends CoreTestFmwk {
             wk.start();
         }
         for (Thread wk : workers) {
-            try {
-                wk.join();
-            } catch (InterruptedException ie) {
-
-            }
+            XCldrStub.joinUninterruptibly(wk);
         }
     }
 

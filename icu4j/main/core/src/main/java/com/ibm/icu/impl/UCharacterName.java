@@ -110,7 +110,8 @@ public final class UCharacterName {
             return result;
         }
 
-        String upperCaseName = name.toUpperCase(Locale.ENGLISH);
+        // From now on we do UAX44 matching.
+        final var query = new CharacterNameQuery(name);
         // try algorithmic names first, if fails then try group names
         // int result = getAlgorithmChar(choice, uppercasename);
 
@@ -121,7 +122,7 @@ public final class UCharacterName {
                 count = m_algorithm_.length;
             }
             for (count--; count >= 0; count--) {
-                result = m_algorithm_[count].getChar(upperCaseName);
+                result = m_algorithm_[count].getChar(query);
                 if (result >= 0) {
                     return result;
                 }
@@ -129,12 +130,12 @@ public final class UCharacterName {
         }
 
         if (choice == UCharacterNameChoice.EXTENDED_CHAR_NAME) {
-            result = getGroupChar(upperCaseName, UCharacterNameChoice.UNICODE_CHAR_NAME);
+            result = getGroupChar(query, UCharacterNameChoice.UNICODE_CHAR_NAME);
             if (result == -1) {
-                result = getGroupChar(upperCaseName, UCharacterNameChoice.CHAR_NAME_ALIAS);
+                result = getGroupChar(query, UCharacterNameChoice.CHAR_NAME_ALIAS);
             }
         } else {
-            result = getGroupChar(upperCaseName, choice);
+            result = getGroupChar(query, choice);
         }
         return result;
     }
@@ -659,16 +660,19 @@ public final class UCharacterName {
          *
          * @return the algorithmic char or -1 otherwise.
          */
-        int getChar(String name) {
+        int getChar(CharacterNameQuery query) {
             int prefixlen = m_prefix_.length();
-            if (name.length() < prefixlen || !m_prefix_.equals(name.substring(0, prefixlen))) {
+            final var matcher = query.matcher();
+            if (!matcher.consistentWith(m_prefix_)) {
                 return -1;
             }
 
             switch (m_type_) {
                 case TYPE_0_:
                     try {
-                        int result = Integer.parseInt(name.substring(prefixlen), 16);
+                        int result =
+                                Integer.parseInt(
+                                        matcher.remainingSignificantCharacters().toString(), 16);
                         // does it fit into the range?
                         if (m_rangestart_ <= result && result <= m_rangeend_) {
                             return result;
@@ -698,8 +702,13 @@ public final class UCharacterName {
                         // code <= factors[0]
                         indexes[0] = offset;
 
+                        // This implementation assumes that the suffix does not contain SPACEs nor
+                        // HYPHEN-MINUSes,
+                        // which is the case in practice for the names of Hangul syllables.
+                        final String querySuffix =
+                                matcher.remainingSignificantCharacters().toString();
                         // joining up the factorized strings
-                        if (compareFactorString(indexes, m_variant_, name, prefixlen)) {
+                        if (compareFactorString(indexes, m_variant_, querySuffix, 0)) {
                             return ch;
                         }
                     }
@@ -1072,20 +1081,22 @@ public final class UCharacterName {
         return null;
     }
 
+    static int start;
+
     /**
      * Getting the character with the tokenized argument name
      *
-     * @param name of the character
+     * @param query character name to search for
      * @return character with the tokenized argument name or -1 if character is not found
      */
-    private synchronized int getGroupChar(String name, int choice) {
+    private synchronized int getGroupChar(CharacterNameQuery query, int choice) {
         for (int i = 0; i < m_groupcount_; i++) {
             // populating the data set of grouptable
 
             int startgpstrindex = getGroupLengths(i, m_groupoffsets_, m_grouplengths_);
-
+            start = m_groupinfo_[i * m_groupsize_] << GROUP_SHIFT_;
             // shift out to function
-            int result = getGroupChar(startgpstrindex, m_grouplengths_, name, choice);
+            int result = getGroupChar(startgpstrindex, m_grouplengths_, query, choice);
             if (result != -1) {
                 return (m_groupinfo_[i * m_groupsize_] << GROUP_SHIFT_) | result;
             }
@@ -1098,21 +1109,20 @@ public final class UCharacterName {
      *
      * @param index index where the set of names reside in the group block
      * @param length list of lengths of the strings
-     * @param name character name to search for
+     * @param query character name to search for
      * @param choice of either 1.0 or the most current unicode name
      * @return relative character in the group which matches name, otherwise if not found, -1 will
      *     be returned
      */
-    private int getGroupChar(int index, char length[], String name, int choice) {
+    private int getGroupChar(int index, char length[], CharacterNameQuery query, int choice) {
         byte b = 0;
         char token;
         int len;
-        int namelen = name.length();
-        int nindex;
         int count;
 
-        for (int result = 0; result <= LINES_PER_GROUP_; result++) {
-            nindex = 0;
+        results:
+        for (int result = 0; result <= LINES_PER_GROUP_; result++, index += len) {
+            final var matcher = query.matcher();
             len = length[result];
 
             if (choice != UCharacterNameChoice.UNICODE_CHAR_NAME
@@ -1133,13 +1143,13 @@ public final class UCharacterName {
 
             // number of tokens is > the length of the name
             // write each letter directly, and write a token word per token
-            for (count = 0; count < len && nindex != -1 && nindex < namelen; ) {
+            for (count = 0; count < len; ) {
                 b = m_groupstring_[index + count];
                 count++;
 
                 if (b >= m_tokentable_.length) {
-                    if (name.charAt(nindex++) != (b & 0xFF)) {
-                        nindex = -1;
+                    if (!matcher.consistentWith((char) (b & 0xFF))) {
+                        continue results;
                     }
                 } else {
                     token = m_tokentable_[b & 0xFF];
@@ -1149,23 +1159,28 @@ public final class UCharacterName {
                         count++;
                     }
                     if (token == 0xFFFF) {
-                        if (name.charAt(nindex++) != (b & 0xFF)) {
-                            nindex = -1;
+                        final char c = (char) (b & 0xFF);
+                        if (c != ';') {
+                            if (!matcher.consistentWith(c)) {
+                                continue results;
+                            }
+                        } else {
+                            break;
                         }
                     } else {
                         // compare token with name
-                        nindex =
-                                UCharacterUtility.compareNullTermByteSubString(
-                                        name, m_tokenstring_, nindex, token);
+                        for (int i = token; m_tokenstring_[i] != 0; ++i) {
+                            if (!matcher.consistentWith((char) (m_tokenstring_[i] & 0xFF))) {
+                                continue results;
+                            }
+                        }
                     }
                 }
             }
 
-            if (namelen == nindex && (count == len || m_groupstring_[index + count] == ';')) {
+            if (matcher.matches()) {
                 return result;
             }
-
-            index += len;
         }
         return -1;
     }

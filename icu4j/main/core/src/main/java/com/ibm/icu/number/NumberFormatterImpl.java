@@ -36,6 +36,7 @@ import com.ibm.icu.text.NumberingSystem;
 import com.ibm.icu.text.PluralRules;
 import com.ibm.icu.util.Currency;
 import com.ibm.icu.util.MeasureUnit;
+import com.ibm.icu.util.ULocale;
 
 /**
  * This is the "brain" of the number formatting pipeline. It ties all the pieces together, taking in
@@ -45,6 +46,15 @@ import com.ibm.icu.util.MeasureUnit;
  * on too many package-private members of the public APIs.
  */
 class NumberFormatterImpl {
+
+    /**
+     * Maximum number of integer or fraction digits we will output during formatting. Set to 999,999
+     * to allow valid large-range performance tests (e.g., test21684_Performance formatting
+     * -1e99999) while preventing runaway loops, allocation spikes, and timeouts when formatting
+     * numbers with hugely out-of-bounds magnitudes (like scale/1e200000000). This value may be
+     * tuned to a smaller value later if necessary.
+     */
+    private static final int MAX_FORMATTED_DIGITS = 999999;
 
     /** Builds a "safe" MicroPropsGenerator, which is thread-safe and can be used repeatedly. */
     public NumberFormatterImpl(MacroProps macros) {
@@ -228,10 +238,9 @@ class NumberFormatterImpl {
         if (macros.symbols instanceof DecimalFormatSymbols) {
             micros.symbols = (DecimalFormatSymbols) macros.symbols;
         } else {
-            micros.symbols = DecimalFormatSymbols.forNumberingSystem(macros.loc, ns);
-            if (isCurrency) {
-                micros.symbols.setCurrency(currency);
-            }
+            ULocale localeWithCurrency =
+                    macros.loc.setKeywordValue("currency", currency.toString());
+            micros.symbols = DecimalFormatSymbols.forNumberingSystem(localeWithCurrency, ns);
         }
 
         // Load and parse the pattern string. It is used for grouping sizes and affixes only.
@@ -521,6 +530,11 @@ class NumberFormatterImpl {
                             length + index, micros.symbols.getNaN(), NumberFormat.Field.INTEGER);
 
         } else {
+            if (quantity.getUpperDisplayMagnitude() + 1 > MAX_FORMATTED_DIGITS
+                    || -quantity.getLowerDisplayMagnitude() > MAX_FORMATTED_DIGITS) {
+                throw new IllegalArgumentException(
+                        "Magnitude exceeds maximum required integer or fraction digits.");
+            }
             // Add the integer digits
             length += writeIntegerDigits(micros, quantity, string, length + index);
 
@@ -578,6 +592,10 @@ class NumberFormatterImpl {
             MicroProps micros, DecimalQuantity quantity, FormattedStringBuilder string, int index) {
         int length = 0;
         int integerCount = quantity.getUpperDisplayMagnitude() + 1;
+        if (integerCount > MAX_FORMATTED_DIGITS) {
+            throw new IllegalArgumentException(
+                    "Magnitude exceeds maximum required integer digits.");
+        }
         for (int i = 0; i < integerCount; i++) {
             // Add grouping separator
             if (micros.grouping.groupAtPosition(i, quantity)) {
@@ -613,6 +631,10 @@ class NumberFormatterImpl {
             MicroProps micros, DecimalQuantity quantity, FormattedStringBuilder string, int index) {
         int length = 0;
         int fractionCount = -quantity.getLowerDisplayMagnitude();
+        if (fractionCount > MAX_FORMATTED_DIGITS) {
+            throw new IllegalArgumentException(
+                    "Magnitude exceeds maximum required fraction digits.");
+        }
         for (int i = 0; i < fractionCount; i++) {
             // Get and append the next digit value
             byte nextDigit = quantity.getDigit(-i - 1);

@@ -98,7 +98,7 @@ integration that is part of the BRS process; handle each of these using a separa
 ticket and a separate PR:
 
 1. Generate updated CLDR test data (which is copied to ICU), using the process in
-   [Generating CLDR testData](https://docs.google.com/document/d/1-RC99npKcSSwUoYGkSzxaKOe76gYRkWhGdFzCdIBCu4/edit#heading=h.2rum9c6hrr4w)
+   [Generating CLDR testData](https://docs.google.com/document/d/1-RC99npKcSSwUoYGkSzxaKOe76gYRkWhGdFzCdIBCu4/)
 
 2. Run `CLDRModify` with no options with no options and then with `-fP`. The web page
    for `CLDRModify` is currently being converted to markdown, a reference to it will
@@ -192,6 +192,18 @@ mkdir -p $NOTES
 export ICU_DATA_VER=icudt(version)b
 ```
 
+#### For the impatient — One Liner Build
+
+This runs all the way through step **5b** below.
+It is not a complete integration.
+
+```sh
+cd $ICU_DIR/tools/cldr
+python build.py --build-prereqs --proddata --convert --copy-cldr-testdata
+```
+
+For a complete integration, please continue reading.
+
 ## 2 Initial builds of ICU4C and ICU4J
 
 2a. Configure ICU4C, build and test without new data first, to verify that
@@ -247,62 +259,40 @@ open $ICU_DIR/tools/cldr/cldr-to-icu/src/main/resources/ldml2icu_supplemental.tx
 
 ## 4 Build and install CLDR jar
 
-See `$ICU_DIR/tools/cldr/cldr-to-icu/README.md` for more information on the CLDR jar.
 ```sh
-cd "$CLDR_DIR"
-mvn clean install -pl :cldr-all,:cldr-code -DskipTests -DskipITs
+cd $ICU_DIR/tools/cldr
+python ./build.py --build-prereqs
 ```
 
 ## 5 Generate CLDR production data and convert for ICU
 
-5a. Generate the CLDR production data.
+### 5a convert production data
 
-**// NEW PROCESS, Python. Please use this!**
-
-This process uses Python with ICU4C's `data/build.py`
-
-* Running `python build.py --cleanprod` is necessary to clean out the production data directory
-  (usually `$CLDR_TMP_DIR/production`), required if any CLDR data has changed.
+> [!NOTE]
+> skip this step if you are starting from pre-existing production data, such as a production .zip file,
+> or a special tag in cldr-staging.
 
 ```sh
-cd $ICU4C_DIR/source/data
-python build.py --proddata
+cd $ICU_DIR/tools/cldr
+python ./build.py --proddata
 ```
-
-**// NEW PROCESS - END**
-
-**// TO REMOVE - Don't execute if the above step works.**
-
-This process uses ant with ICU4C's `data/build.xml`
-
-* Running `ant cleanprod` is necessary to clean out the production data directory
-  (usually `$CLDR_TMP_DIR/production`), required if any CLDR data has changed.
-* Running `ant setup` is not required, but it will print useful errors to
-  debug issues with your path when it fails.
-
-```sh
-cd $ICU4C_DIR/source/data
-ant cleanprod
-ant setup
-ant proddata 2>&1 | tee $NOTES/cldr-newData-proddataLog.txt
-```
-**// TO REMOVE - END**
 
 > Note, for CLDR development, at this point tests are sometimes run on the
    production data, see
-   [BRS: Run tests on production data](https://cldr.unicode.org/development/cldr-big-red-switch/brs-run-tests-on-production-data)
+   [BRS: Run tests on production data](https://cldr.unicode.org/development/cldr-big-red-switch/)
 
 > Note, also for CLDR development, periodically at this point the CompareResolved
   tool should be run to compare the fully-resolved data generated from `$CLDR_DIR/common/main`
   with the fully-resolved data generated from the just-updated production data
   `$CLDR_DATA_DIR/common/main`; any discrepancies should be investigated. The tool
   can be run for example as follows:
+
 ```sh
 cd $CLDR_DIR
 java -DCLDR_DIR=$(pwd) -jar tools/cldr-code/target/cldr-code.jar CompareResolved -s $CLDR_DIR/common/main -c $CLDR_DATA_DIR/common/main > $NOTES/CompareResolved-result.txt
 ```
 
-5b. Build the new ICU4C data files.
+### 5b. Build the new ICU4C data files.
 
 These include .txt files and .py files. These new files will replace whatever was
 already present in the ICU4C sources. This process uses the `LdmlConverter` in
@@ -318,9 +308,8 @@ already present in the ICU4C sources. This process uses the `LdmlConverter` in
   `config.xml` file, such as adding new locales etc.
 
 ```sh
-cd $TOOLS_ROOT/cldr/cldr-to-icu
-mvn clean package -DskipTests -DskipITs
-java -jar target/cldr-to-icu-1.0-SNAPSHOT-jar-with-dependencies.jar --cldrDataDir="$CLDR_TMP_DIR/production" | tee $NOTES/cldr-newData-builddataLog.txt
+cd $ICU_DIR/tools/cldr
+python ./build.py --convert
 ```
 
 5c. Update the CLDR testData files needed by ICU4C/J tests, ensuring
@@ -335,13 +324,15 @@ python build.py --copy-cldr-testdata
 ant copy-cldr-testdata
 ```
 
-5d. NOP
+### 5d. NOP
+
 (This step has been subsumed into 5c above)
 
-5e. NOP
+### 5e. NOP
+
 (This step is no longer necessary, see [ICU-23215](https://unicode-org.atlassian.net/browse/ICU-23215) for details.)
 
-5f. Update hard-coded lists in ICU
+### 5f. Update hard-coded lists in ICU
 
 ICU has some hard-coded lists of locale-related codes that may need updating. Ideally these should
 be replaced by data converted from CLDR ([ICU-22839](https://unicode-org.atlassian.net/browse/ICU-22839)). In the
@@ -386,6 +377,14 @@ Look for evident errors in the list of file changes, or in the file diffs.
 Fixing them may entail modifying CLDR source data or `$ICU_DIR/tools/cldr/cldr-to-icu` config files or
 tooling.
 
+Note that you can use the following to rebuild just the cldr-to-icu tool and
+regenerate data.
+
+```sh
+cd $ICU_DIR/tools/cldr
+python build.py --build --convert
+```
+
 ## 8 Rebuild ICU4C with new data, run tests
 
 8a. Re-run configure and make clean, necessary to handle any files added or deleted:
@@ -420,7 +419,7 @@ If the error is caused by bad CLDR data, then file a CLDR bug (or use the existi
 ticket under which you are performing the integration, if you have one), fix the data,
 and regenerate from step 4.
 
-If the data is OK , other sources of failure can include:
+If the data is OK, other sources of failure can include:
 
 * Problems with the CLDR-ICU conversion process (perhaps some locale data is not getting
   converted properly; go back to step 3, adjust and repeat from there.
@@ -484,7 +483,22 @@ cd $ICU4J_ROOT
 
 ## 13 Rebuild ICU4J with new data, run tests
 
-13a. Run the tests using the Maven build
+13a. Re-format the generated Java files
+
+In some cases the previous steps will generate Java code
+(for example `LocaleFallbackData.java`, `ResourceFallbackCodeGenerator.java`,
+`DebugUtilitiesData.java`).
+
+We try to generate code that is already formatted correctly, but some edge
+cases can't be handled easily.
+So it is best to format automatically:
+
+```sh
+cd $ICU4J_ROOT
+mvn spotless:apply
+```
+
+13b. Run the tests using the Maven build
 ```sh
 cd $ICU4J_ROOT
 mvn clean
@@ -502,7 +516,7 @@ or (example of using module path, class name, one method):
 mvn install -pl main/common_tests -Dtest=MeasureUnitTest#TestGreek
 ```
 
-13b. Optionally run the tests in exhaustive mode
+13c. Optionally run the tests in exhaustive mode
 
 Optionally run exhaustive tests locally before committing changes:
 ```sh

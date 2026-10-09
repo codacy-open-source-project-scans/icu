@@ -1098,7 +1098,7 @@ void UnicodeSetTest::TestPropertySet() {
 
         "[:Assigned:]",
         "A\\uE000\\uF8FF\\uFDC7\\U00010000\\U0010FFFD",
-        "\\u0558\\uFDD3\\uFFFE\\U00050005",
+        "\\u0557\\uFDD3\\uFFFE\\U00050005",
 
         // Script_Extensions, new in Unicode 6.0
         "[:scx=Arab:]",
@@ -1291,11 +1291,13 @@ void UnicodeSetTest::TestCloseOver() {
         // selector, input, output
         CASE,
         "[aq\\u00DF{Bc}{bC}{Fi}]",
-        "[aAqQ\\u00DF\\u1E9E\\uFB01{ss}{bc}{fi}]",  // U+1E9E LATIN CAPITAL LETTER SHARP S is new in Unicode 5.1
+        // U+1E9E LATIN CAPITAL LETTER SHARP S is new in Unicode 5.1.
+        // U+1DF95 LATIN SMALL LIGATURE LONG S WITH DESCENDER S is new in Unicode 18.
+        "[aAqQ\\u00DF\\u1E9E\\U0001DF95\\uFB01{ss}{bc}{fi}]",
 
         SIMPLE_CASE_INSENSITIVE,
         "[aq\\u00DF{Bc}{bC}{Fi}]",
-        "[aAqQ\\u00DF\\u1E9E{bc}{fi}]",
+        "[aAqQ\\u00DF\\u1E9E\\U0001DF95{bc}{fi}]",
 
         CASE,
         "[\\u01F1]", // 'DZ'
@@ -1792,6 +1794,15 @@ void UnicodeSetTest::TestSymbolTable() {
         "us", "[a-z]", "[0-1$us]", "[0-1[a-z]]", nullptr,
         // Variables do not expand inside string literals.
         "us", "[a-z]", "[$us{$us}]", R"([a-z{\$us}])", nullptr,
+        // Variables are their own lexical elements added to the syntax; their
+        // values are not subject to the lexical separation constraints (this is
+        // not macro replacement anymore).
+        "colon", ":", "[$colon]", R"([\:])", nullptr,
+        "DBFF", R"(\uDBFF)",
+        "DFFF", R"(\uDFFF)",
+                "[$DBFF$DFFF]", R"([\uDFFF\uDBFF])", nullptr,
+        "nul", R"(\00)", "seven", "7", "[$nul$seven]", R"([\u00007])", nullptr,
+        "cr", R"(\xD)", "F", "F", "[$cr$F]", R"([\u000DF])", nullptr,
         "privateUse", "[[:Co:]]", "$privateUse", "[[:Co:]]", nullptr,
         nullptr
     };
@@ -4715,10 +4726,47 @@ void UnicodeSetTest::TestToPatternOutput() {
             {u"[{a}-z]", u"[a-z]"},
             {uR"([\N{PRESENTATION FORM FOR VERTICAL RIGHT WHITE LENTICULAR BRAKCET}])", u"[︘]"},
             {uR"([\N{bell}])", u"[🔔]"},
-            // Ill-formed in ICU 78 and earlier:
+            // Ill-formed in ICU 78 and earlier, made well-formed by ICU-23350:
             {uR"([\N{PRESENTATION FORM FOR VERTICAL RIGHT WHITE LENTICULAR BRACKET}])", u"[︘]"},
+            // Loose matching: These were ill-formed in ICU 78 and earlier, and were
+            // made well-formed by ICU-3736.
+            {uR"([\N{Latin small ligature o-e}])", u"[œ]"},
             {uR"([\N{Hangul jungseong O-E}])", u"[ᆀ]"},
+            {uR"([\N{Hangul jungseong O -E}])", u"[ᆀ]"},
             {uR"([\N{Hangul jungseong OE}])", u"[ᅬ]"},
+            {uR"([\N{Tibetan letter -a}])", u"[འ]"},
+            {uR"([\N{Tibetan letter - a}])", u"[འ]"},
+            {uR"([\N{TIBETAN_LETTER_-A}])", u"[འ]"},
+            {uR"([\N{TIBETAN LETTER-A}])", u"[ཨ]"},
+            {uR"([\N{Tibetan mark BKA- SHOG YIG MGO}])", u"[༊]"},
+            {uR"([\N{Tibetan mark BKA -SHOG-YIG-MGO}])", u"[༊]"},
+            {uR"([\N{CJK UNIFIED IDEOGRAPH-55B5}])", u"[喵]"},
+            {uR"([\N{CJK unified ideograph 5-5-b-5}])", u"[喵]"},
+            {uR"([{\N{Hangul syllable YA}\N{Hangul syllable ONG}}])", u"[{야옹}]"},
+            {uR"([{\N{Hangul-syllable-y-a}\N{Hangul-syllable-o-ng}}])", u"[{야옹}]"},
+            {uR"([\xDF])", u"[ß]"},
+            {uR"([\xDFF])", u"[Fß]"},
+            {uR"([\xD F])", uR"([\u000DF])"},
+            {uR"([\0007])", uR"([\u00007])"},
+            {uR"([\007])", uR"([\u0007])"},
+            {uR"([\00 7])", uR"([\u00007])"},
+            {uR"([\0 07])", uR"([\u000007])"},
+            {uR"([\ 007])", uR"([\ 07])"},
+            {uR"([\800])", uR"([08])"},
+            {uR"([\0008])", uR"([\u00008])"},
+            {uR"([\008])", uR"([\u00008])"},
+            {uR"([\08])", uR"([\u00008])"},
+            {uR"([\8])", uR"([8])"},
+            {uR"([\007F])", uR"([\u0007F])"},
+            {uR"([\07F])", uR"([\u0007F])"},
+            {uR"([\7F])", uR"([\u0007F])"},
+            {uR"([\u200E007])", u"[07\\\u200E]"},
+            {u"[\\\u200E007]", u"[07\\\u200E]"},
+            {u"[{\\\u200E}]", u"[\\\u200E]"},
+            {uR"([ :Greek:])", uR"([\:Gekr])"},
+            {uR"([\uDBFF \uDFFF])", uR"([\uDFFF\uDBFF])"},
+            // ICU-2906, ICU extension to UnicodeSet.
+            {uR"([\uDBFF\uDFFF])", uR"([\U0010FFFF])"},
         }) {
         UErrorCode errorCode = U_ZERO_ERROR;
         const UnicodeSet set(expression, errorCode);
@@ -4781,7 +4829,7 @@ void UnicodeSetTest::TestParseErrors() {
             // This was a well-formed string in ICU 78 and earlier, with the value
             // "N{LATINCAPITALLETTERZ".
             uR"([{\N{LATIN CAPITAL LETTER Z}])",
-            // These three were well-formed in ICU 78 and earlier.
+            // These four were well-formed in ICU 78 and earlier.
             uR"([{\Normandie}])",
             uR"([{\Picardie}])",
             uR"([{Provence-Al\pes-Côte d'Azur}])",
@@ -4795,6 +4843,20 @@ void UnicodeSetTest::TestParseErrors() {
             uR"([ { \x5A e i c h e n k e t t e } \x5Aeichenmenge ])",
             u"[ { Z e i c h e n k e t t e } [] Zeichenmenge ]",
             uR"([ { \x5A e i c h e n k e t t e } [] \x5Aeichenmenge ])",
+            // ICU-23497 Implicit Directional Marks should not separate UnicodeSet lexical elements.
+            u"[\\xD\u200EF]",
+            u"[\\00\u200E7]",
+            u"[\\0\u200E07]",
+            u"[\\uDBFF\u200E\\uDFFF]",
+            u"[\\x{DBFF}\u200E\\U0000DFFF]",
+            u"[\u200E:Greek:]",
+            // ICU4J interprets those like [\uDBFF\uDFFF], as [\U0010FFFF].  ICU4C < 79 interpreted
+            // them as [\uDBFF \uDFFF], because the sequence of two escapes is longer than
+            // MAX_U_NOTATION_LEN defined in ruleiter.cpp.  They were thus never portable; they
+            // become ill-formed in ICU4C 79 because of the requirement to separate escaped-elements
+            // for lead and trail surrogates.
+            uR"([\x{DBFF}\x{DFFF}])",
+            uR"([\U0000DBFF\U0000DFFF])",
         }) {
         UErrorCode errorCode = U_ZERO_ERROR;
         const UnicodeSet set(expression, errorCode);
@@ -4807,7 +4869,7 @@ void UnicodeSetTest::TestParseErrors() {
     for (const auto expression : std::vector<std::u16string_view>{
             // Java error message: "Invalid property pattern".
             u"[:]",
-            uR"(\p)"
+            uR"(\p)",
             u"[:^]",
             uR"(\P)",
             uR"(\N)",
@@ -4840,8 +4902,18 @@ void UnicodeSetTest::TestParseErrors() {
             u"[:^Noncharacter_Code_Point≠No:]",
             // This should be [\a]; tracked by ICU-8963.
             uR"([\N{BEL}])",
-            // This should be [œ]; tracked by ICU-3736.
-            uR"([\N{Latin small ligature o-e}])",
+            // The leading hyphen does not match the medial hyphen in the real character name.
+            uR"([\N{CJK UNIFIED IDEOGRAPH -55B5}])",
+            // A medial hyphen does not match the trailing hyphen in BKA-.
+            uR"([\N{Tibetan mark BKA-SHOG-YIG-MGO}])",
+            // With -- in the query, neither hyphen is medial, and two hyphens do not match one.
+            uR"([\N{Tibetan mark BKA--SHOG-YIG-MGO}])",
+            // A final hyphen is trailing, so non-ignorable, and by rule R3 it
+            // would never match a character name:
+            // https://unicode.org/versions/Unicode17.0.0/core-spec/chapter-4/#G135174.
+            // But an early version of the character name matcher would read out
+            // of the bounds of the query in that case, so test it.
+            uR"([\N{CJK UNIFIED IDEOGRAPH 55B5-}])",
         }) {
         UErrorCode errorCode = U_ZERO_ERROR;
         const UnicodeSet set(expression, errorCode);

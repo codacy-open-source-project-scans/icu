@@ -3,15 +3,15 @@
 # Copyright (C) 2026 and later: Unicode, Inc. and others.
 # License & terms of use: http://www.unicode.org/copyright.html
 
-"""This build file is intended to become the single mechanism for working with
+"""This build file is the single mechanism for working with
   CLDR code and data when building ICU data.
 
-Eventually it will encompass:
+It includes:
 * Building ICU data form CLDR data via cldr-to-icu.
 * Building the CLDR libraries needed to support ICU data conversion.
 * Copying CLDR test data for ICU regression tests.
 
-It's not complete yet, so for now follow the instructions in:
+Follow the instructions in:
   <icu_root>/docs/processes/cldr-icu.md
 which is best viewed as
   https://unicode-org.github.io/icu/processes/cldr-icu.html
@@ -22,6 +22,7 @@ import os
 import sys
 
 try:
+  from libs import icudirs
   from libs import icufs
   from libs import iculog
   from libs import icuproc
@@ -32,36 +33,12 @@ except (ModuleNotFoundError, ImportError) as e:
   print("  set PYTHONPATH=<icu_root>\\tools\\py")
   sys.exit(1)
 
-cldr_dir = str(os.getenv("CLDR_DIR"))
-icu_dir = str(os.getenv("ICU_DIR"))
-test_data_dir_4c = ""
-test_data_dir_4j = ""
-
-
-def _init_args():
-  """Initialize any properties not already set on the command line."""
-  # Inherit properties from environment variable unless specified. As usual
-  # with Ant, this is messier than it should be. All we are saying here is:
-  # "Use the property if explicitly set, otherwise use the environment variable"
-  # We cannot just set the property to the environment variable, since expansion
-  # fails for non existent properties, and you are left with a literal value of
-  # "${env.CLDR_DIR}".
-  global test_data_dir_4c
-  global test_data_dir_4j
-  if not icu_dir:
-    iculog.failure(
-        "Set the ICU_DIR environment variable to the top level"
-        " ICU source directory (containing 'icu4c' and 'icu4j')."
-    )
-  if not cldr_dir:
-    iculog.failure(
-        "Set the CLDR_DIR environment variable to the top level"
-        " CLDR source directory (containing 'common')."
-    )
-  test_data_dir_4c = os.path.join(icu_dir, "icu4c/source/test/testdata/cldr")
-  test_data_dir_4j = os.path.join(
-      icu_dir, "icu4j/main/core/src/test/resources/com/ibm/icu/dev/data/cldr"
-  )
+cldr_dir = icudirs.cldr_dir()
+icu_dir = icudirs.icu_dir()
+test_data_dir_4c = os.path.join(icu_dir, "icu4c/source/test/testdata/cldr")
+test_data_dir_4j = os.path.join(
+    icu_dir, "icu4j/main/core/src/test/resources/com/ibm/icu/dev/data/cldr"
+)
 
 
 def _create_catalog(test_data_dir: str, contents: list[str]):
@@ -79,13 +56,13 @@ def _create_catalog(test_data_dir: str, contents: list[str]):
 def copy_cldr_testdata():
   """Copies CLDR test data directories, after deleting previous
   contents to prevent inconsistent state."""
-  _init_args()
   clean_cldr_testdata()
   src_dir_base = os.path.join(cldr_dir, "common/testData")
   # CLDR test data directories to be copied into ICU.
   # Add directories here to control which test data is installed.
   cldr_test_data = [
       "localeIdentifiers",
+      "messageFormat",  # Used in MessageFormatter tests
       "personNameTest",  # Used in ExhaustivePersonNameTest
       "units",  # Used in UnitsTest tests
   ]
@@ -106,7 +83,6 @@ def copy_cldr_testdata():
 
 def clean_cldr_testdata():
   """Deletes CLDR test data"""
-  _init_args()
   iculog.title("Removing test dirs")
   icufs.rmdir(test_data_dir_4c)
   icufs.rmdir(test_data_dir_4j)
@@ -114,11 +90,44 @@ def clean_cldr_testdata():
 
 def reset_cldr_testdata():
   """Restores CLDR test data"""
-  _init_args()
   iculog.title("Git-restore test dirs")
   icuproc.run_with_logging(f"git checkout -- {test_data_dir_4c}")
   icuproc.run_with_logging(f"git checkout -- {test_data_dir_4j}")
 
+def build_prereqs():
+  """build all prereqs"""
+  iculog.title("Build Prereqs: ICU4J, CLDR")
+  old_dir = icufs.pushd(icu_dir)
+  icuproc.run_with_logging("mvn -B clean install -f icu4j -DskipTests -DskipITs", logfile="build_icu4j.log")
+  icufs.popd(old_dir)
+  old_dir = icufs.pushd(cldr_dir)
+  icuproc.run_with_logging(f"mvn -B clean install -pl :cldr-all,:cldr-code -DskipTests -DskipITs", logfile="build_cldr.log")
+  icufs.popd(old_dir)
+  build()
+
+def build():
+  """build cldr-to-icu"""
+  iculog.title("Build cldr-to-icu")
+  old_dir = icufs.pushd(f"{icu_dir}/tools/cldr/cldr-to-icu/")
+  icuproc.run_with_logging(f"mvn -B clean package -DskipTests -DskipITs", logfile="build_cldr-to-icu.log")
+  icufs.popd(old_dir)
+
+def convert_data():
+  """Convert CLDR to ICU"""
+  iculog.title("Convert CLDR to ICU")
+  old_dir = icufs.pushd(f"{icu_dir}/tools/cldr/cldr-to-icu/")
+  icuproc.run_with_logging(f"java -jar target/cldr-to-icu-1.0-SNAPSHOT-jar-with-dependencies.jar", logfile="convert.log")
+  icufs.popd(old_dir)
+
+def proddata():
+  """Regenerate production data"""
+  iculog.title("Regenerate production data from CLDR")
+  cldrtools_jar = f"{cldr_dir}/tools/cldr-code/target/cldr-code.jar"
+  icuproc.run_with_logging(
+      "java"
+      f" -cp {cldrtools_jar}"
+      " org.unicode.cldr.tool.GenerateProductionData"
+      " -v", logfile="proddata.log")
 
 def main() -> int:
   parser = argparse.ArgumentParser()
@@ -141,14 +150,50 @@ def main() -> int:
       help="Restores the CLDR test data from git",
       action="store_true",
   )
+  parser.add_argument(
+    "--build-prereqs",
+    help="Build ICU and CLDR prereqs (and the tool)",
+    action="store_true",
+  )
+  parser.add_argument(
+    "--build",
+    help="Build tooling",
+    action="store_true",
+  )
+  parser.add_argument(
+    "--convert",
+    help="Convert CLDR to ICU data",
+    action="store_true",
+  )
+  parser.add_argument(
+    "--proddata",
+    help="Generate CLDR production data",
+    action="store_true",
+  )
   cmd = parser.parse_args()
 
-  if cmd.copy_cldr_testdata:
-    copy_cldr_testdata()
-  elif cmd.remove_cldr_testdata:
+  if cmd.remove_cldr_testdata:
     clean_cldr_testdata()
   elif cmd.reset_cldr_testdata:
     reset_cldr_testdata()
+  elif cmd.convert:
+    if cmd.build_prereqs:
+      build_prereqs()  # Implies and calls --build
+    elif cmd.build:
+      build()
+    if cmd.proddata:
+      proddata()
+    convert_data()
+    if cmd.copy_cldr_testdata:
+      copy_cldr_testdata()
+  elif cmd.build_prereqs:
+    build_prereqs()
+  elif cmd.proddata:
+    proddata()
+  elif cmd.build:
+    build()
+  elif cmd.copy_cldr_testdata:
+    copy_cldr_testdata()
   else:
     parser.print_help()
   return 0

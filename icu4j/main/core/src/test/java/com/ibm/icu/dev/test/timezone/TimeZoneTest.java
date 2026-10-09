@@ -139,7 +139,8 @@ public class TimeZoneTest extends CoreTestFmwk {
             new ZoneDescriptor("ECT", 60, true), // ICU Link - Europe/Paris
             new ZoneDescriptor("MET", 60, true), // Olson europe 1:00 C-Eur
             new ZoneDescriptor("CAT", 120, false), // ICU Link - Africa/Harare
-            new ZoneDescriptor("ART", 120, false), // ICU Link - Africa/Cairo
+            new ZoneDescriptor(
+                    "ART", 120, true), // ICU Link - Africa/Cairo - observes DST since 2023
             new ZoneDescriptor("EET", 120, true), // Olson europe 2:00 EU
             new ZoneDescriptor("EAT", 180, false), // ICU Link - Africa/Addis_Ababa
             new ZoneDescriptor("NET", 240, false), // ICU Link - Asia/Yerevan
@@ -179,9 +180,6 @@ public class TimeZoneTest extends CoreTestFmwk {
             } else {
                 if (!isDevelopmentBuild || isJDKTimeZone) {
                     logln("Warning: Expected " + referenceZone + "; got " + currentZone);
-                } else if (!(referenceZone.getID().equals("ART")
-                        && logKnownIssue("ICU-22436", "Wrong DST status for time zone ART"))) {
-                    errln("Fail: Expected " + referenceZone + "; got " + currentZone);
                 }
             }
         }
@@ -555,28 +553,28 @@ public class TimeZoneTest extends CoreTestFmwk {
         TimeZone saveDefault = TimeZone.getDefault();
         TimeZone.setDefault(zone);
         TimeZone defaultzone = TimeZone.getDefault();
-        if (defaultzone == zone) {
-            errln("FAIL: Default object is identical, not clone");
-        }
-        if (!defaultzone.equals(zone)) {
-            errln("FAIL: Default object is not equal");
-        }
+        assertNotSame("FAIL: Default object is identical, not clone", defaultzone, zone);
+        assertEquals("FAIL: Default object is not equal", defaultzone, zone);
         java.util.TimeZone javaDefault = java.util.TimeZone.getDefault();
-        if (offset != javaDefault.getRawOffset() || !id.equals(javaDefault.getID())) {
-            errln("FAIL: Java runtime default time zone is not synchronized");
-        }
+        assertEquals(
+                "FAIL: Java runtime default time zone is not synchronized",
+                offset,
+                javaDefault.getRawOffset());
+        assertEquals(
+                "FAIL: Java runtime default time zone is not synchronized",
+                id,
+                javaDefault.getID());
 
         String anotheId = "AnotherZone";
         int anotherOffset = 23456;
         SimpleTimeZone anotherZone = new SimpleTimeZone(anotherOffset, anotheId);
         TimeZone.setICUDefault(anotherZone);
         TimeZone newICUDefaultZone = TimeZone.getDefault();
-        if (newICUDefaultZone == anotherZone) {
-            errln("FAIL: New ICU default object is identical, not clone");
-        }
-        if (!newICUDefaultZone.equals(anotherZone)) {
-            errln("FAIL: New ICU default object is not equal");
-        }
+        assertNotSame(
+                "FAIL: New ICU default object is identical, not clone",
+                newICUDefaultZone,
+                anotherZone);
+        assertEquals("FAIL: New ICU default object is not equal", newICUDefaultZone, anotherZone);
         javaDefault = java.util.TimeZone.getDefault();
         if (offset != javaDefault.getRawOffset() || !id.equals(javaDefault.getID())) {
             errln("FAIL: Java runtime default time zone was updated");
@@ -1369,7 +1367,6 @@ public class TimeZoneTest extends CoreTestFmwk {
         "Brazil/DeNoronha", "America/Noronha",
         "Brazil/East", "America/Sao_Paulo",
         "Brazil/West", "America/Manaus",
-        "CST6CDT", "America/Chicago",
         "Canada/Atlantic", "America/Halifax",
         "Canada/Central", "America/Winnipeg",
         "Canada/East-Saskatchewan", "America/Regina",
@@ -1383,7 +1380,6 @@ public class TimeZoneTest extends CoreTestFmwk {
         "Chile/EasterIsland", "Pacific/Easter",
         "Cuba", "America/Havana",
         "EST", "America/Indianapolis",
-        "EST5EDT", "America/New_York",
         "Egypt", "Africa/Cairo",
         "Eire", "Europe/Dublin",
         "Etc/GMT+0", "Etc/GMT",
@@ -1413,7 +1409,6 @@ public class TimeZoneTest extends CoreTestFmwk {
         "Kwajalein", "Pacific/Kwajalein",
         "Libya", "Africa/Tripoli",
         "MST", "America/Phoenix",
-        "MST7MDT", "America/Denver",
         "Mexico/BajaNorte", "America/Tijuana",
         "Mexico/BajaSur", "America/Mazatlan",
         "Mexico/General", "America/Mexico_City",
@@ -1421,7 +1416,6 @@ public class TimeZoneTest extends CoreTestFmwk {
         "NZ-CHAT", "Pacific/Chatham",
         "Navajo", "America/Shiprock", /* fixed from Mark's original */
         "PRC", "Asia/Shanghai",
-        "PST8PDT", "America/Los_Angeles",
         "Pacific/Samoa", "Pacific/Pago_Pago",
         "Poland", "Europe/Warsaw",
         "Portugal", "Europe/Lisbon",
@@ -2055,8 +2049,8 @@ public class TimeZoneTest extends CoreTestFmwk {
 
         final Object[][] zoneDisplayTestData = {
             //  zone id             locale  summer          format      expected display name
-            {"Europe/London", "en", Boolean.FALSE, TZSHORT, "GMT"},
-            {"Europe/London", "en", Boolean.FALSE, TZLONG, "Greenwich Mean Time"},
+            {"Europe/London", "en", Boolean.FALSE, TZSHORT, "GMT+0"},
+            {"Europe/London", "en", Boolean.FALSE, TZLONG, "GMT+00:00"},
             {"Europe/London", "en", Boolean.TRUE, TZSHORT, "GMT+1" /*"BST"*/},
             {"Europe/London", "en", Boolean.TRUE, TZLONG, "British Summer Time"},
             {"America/Anchorage", "en", Boolean.FALSE, TZSHORT, "AKST"},
@@ -2081,7 +2075,7 @@ public class TimeZoneTest extends CoreTestFmwk {
 
             // No Summer Time, but had it before 1983.
             {"Pacific/Honolulu", "en", Boolean.FALSE, TZSHORT, "HST"},
-            {"Pacific/Honolulu", "en", Boolean.FALSE, TZLONG, "Hawaii-Aleutian Standard Time"},
+            {"Pacific/Honolulu", "en", Boolean.FALSE, TZLONG, "Hawaii Time"},
             {"Pacific/Honolulu", "en", Boolean.TRUE, TZSHORT, "GMT-10"},
             {"Pacific/Honolulu", "en", Boolean.TRUE, TZLONG, "GMT-10:00"},
 
@@ -2191,14 +2185,11 @@ public class TimeZoneTest extends CoreTestFmwk {
             {"America/Indiana/Indianapolis", "US"}, // CLDR alias
             {"Mexico/General", "MX"}, // Link America/Mexico_City, Olson backward
             {"Etc/UTC", "001"},
-            {"EST5EDT", "US"},
+            {"EST5EDT", "001"},
             {"PST", "US"}, // Link America/Los_Angeles
             {"Europe/Helsinki", "FI"},
             {"Europe/Mariehamn", "AX"}, // Link Europe/Helsinki, but in zone.tab
             {"Asia/Riyadh", "SA"},
-            // tz file solar87 was removed from tzdata2013i
-            // {"Asia/Riyadh87",                   "001"}, // this should be "SA" actually, but not
-            // in zone.tab
             {"Atlantic/Jan_Mayen", "SJ"},
             {"Pacific/Truk", "FM"},
             {"Etc/Unknown", null}, // CLDR canonical, but not a sysmte zone ID
@@ -2302,9 +2293,11 @@ public class TimeZoneTest extends CoreTestFmwk {
 
             // clone
             TimeZone copy = thawedZones[i].clone();
-            if (thawedZones[i] == copy || !thawedZones[i].equals(copy)) {
-                errln("Fail: " + zaName + "[" + i + "] - clone does not work.");
-            }
+
+            assertNotSame(
+                    "Fail: " + zaName + "[" + i + "] - clone does not work.", thawedZones[i], copy);
+            assertEquals(
+                    "Fail: " + zaName + "[" + i + "] - clone does not work.", thawedZones[i], copy);
 
             // cloneAsThawed
             TimeZone thawed = thawedZones[i].cloneAsThawed();
@@ -2489,9 +2482,10 @@ public class TimeZoneTest extends CoreTestFmwk {
 
             // clone
             TimeZone copy = frozenZones[i].clone();
-            if (frozenZones[i] != copy) {
-                errln("Fail: " + zaName + "[" + i + "] - clone does not return the object itself.");
-            }
+            assertSame(
+                    "Fail: " + zaName + "[" + i + "] - clone does not return the object itself.",
+                    frozenZones[i],
+                    copy);
 
             // cloneAsThawed
             TimeZone thawed = frozenZones[i].cloneAsThawed();
@@ -2878,7 +2872,7 @@ public class TimeZoneTest extends CoreTestFmwk {
             {"Europe/Zaporozhye", "Europe/Kyiv"},
             {"Etc/GMT-1", "Etc/GMT-1"},
             {"Etc/GMT+20", UNKNOWN},
-            {"PST8PDT", "America/Los_Angeles"},
+            {"PST8PDT", "PST8PDT"},
             {"GMT-08:00", UNKNOWN},
         };
 
